@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package.json .
 
-RUN rm -rf node_modules package-lock.json /app/.cache && npm install
+RUN npm install
 
 COPY . .
 
