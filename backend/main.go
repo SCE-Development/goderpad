@@ -21,7 +21,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:7777", "http://frontend:7777", "http://localhost:5173", "http://frontend:5173"},
+		AllowOrigins:     []string{"http://localhost:7777", "http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "x-api-key"},
 		AllowCredentials: true,
@@ -31,7 +31,7 @@ func main() {
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": "pong",
+			"message": "welcome to goderpad",
 		})
 	})
 

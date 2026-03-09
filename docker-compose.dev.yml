@@ -1,5 +1,5 @@
 services:
-  backend:
+  goderpad-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -9,7 +9,7 @@ services:
     volumes:
       - ./past:/app/past
 
-  frontend:
+  goderpad-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
