@@ -1,11 +1,13 @@
 package services
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"goderpad/metrics"
 	"goderpad/models"
 	"goderpad/utils"
 )
@@ -18,6 +20,13 @@ func CreateRoom(userID, name, roomName string) (string, error) {
 
 	hub := models.GetHub()
 	if err := hub.AddRoom(room); err != nil {
+		reason := "unknown"
+		if errors.Is(err, models.ErrRoomExists) {
+			reason = "room_exists"
+		} else if errors.Is(err, models.ErrRoomNil) {
+			reason = "room_nil"
+		}
+		metrics.RoomCreateErrorsTotal.WithLabelValues(reason).Inc()
 		return "", err
 	}
 
@@ -28,6 +37,7 @@ func JoinRoom(userID, name, roomID string) (map[string]any, error) {
 	hub := models.GetHub()
 	room, exists := hub.GetRoom(roomID)
 	if !exists {
+		metrics.RoomJoinErrorsTotal.WithLabelValues("room_not_found").Inc()
 		return nil, models.ErrRoomNotFound
 	}
 

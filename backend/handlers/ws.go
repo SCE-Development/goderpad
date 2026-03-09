@@ -1,12 +1,14 @@
 package handlers
 
 import (
-	"goderpad/models"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
+	"goderpad/metrics"
+	"goderpad/models"
 )
 
 var upgrader = websocket.Upgrader{
@@ -41,6 +43,8 @@ func WebSocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
+		metrics.WebSocketUpgradeErrorsTotal.Inc()
+		return
 	}
 
 	user.Conn = conn

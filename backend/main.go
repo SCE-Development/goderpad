@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"goderpad/config"
 	"goderpad/handlers"
@@ -31,7 +33,7 @@ func main() {
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": "pong",
+			"message": "welcome to goderpad",
 		})
 	})
 
@@ -42,15 +44,24 @@ func main() {
 
 	r.GET("/ws/:roomID", handlers.WebSocketHandler)
 
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	go services.DeleteRoomSaves()
 
 	r.Run(":" + config.GetPort())
 }
 
 func prometheusMiddleware(c *gin.Context) {
+	start := time.Now()
 	method := c.Request.Method
 	endpoint := c.FullPath()
 
+	c.Next()
+
 	status := c.Writer.Status()
-	metrics.EndpointHits.WithLabelValues(endpoint, method, http.StatusText(status)).Inc()
+	statusText := http.StatusText(status)
+	duration := time.Since(start).Seconds()
+
+	metrics.EndpointHits.WithLabelValues(endpoint, method, statusText).Inc()
+	metrics.HTTPRequestDurationSeconds.WithLabelValues(endpoint, method, statusText).Observe(duration)
 }

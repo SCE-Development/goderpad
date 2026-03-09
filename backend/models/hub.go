@@ -3,6 +3,8 @@ package models
 import (
 	"sync"
 	"time"
+
+	"goderpad/metrics"
 )
 
 type Hub struct {
@@ -44,13 +46,17 @@ func (h *Hub) AddRoom(room *Room) error {
 	}
 
 	h.Rooms[room.RoomID] = room
+	metrics.RoomsActive.Inc()
 	return nil
 }
 
 func (h *Hub) RemoveRoom(roomID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	delete(h.Rooms, roomID)
+	if _, exists := h.Rooms[roomID]; exists {
+		delete(h.Rooms, roomID)
+		metrics.RoomsActive.Dec()
+	}
 }
 
 // ExpireRooms is a goroutine that runs every hour, removing any rooms older than 24 hours.
@@ -64,8 +70,10 @@ func (h *Hub) ExpireRooms() {
 			if time.Since(room.CreatedAt) > time.Hour*24 {
 				room.Close() // close the room's channels and stop its goroutines
 				delete(h.Rooms, roomID)
+				metrics.RoomsActive.Dec()
 			}
 		}
 		h.mu.Unlock()
+		metrics.RoomExpiryLastRun.Set(float64(time.Now().Unix()))
 	}
 }
