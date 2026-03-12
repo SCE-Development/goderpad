@@ -19,9 +19,6 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Copy custom nginx config
-COPY ../nginx.conf /etc/nginx/nginx.conf
-
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 7777
