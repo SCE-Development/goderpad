@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"goderpad/metrics"
 	"goderpad/utils"
 )
 
@@ -48,12 +49,16 @@ func (r *Room) AddUser(user *User) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.Users[user.UserID] = user
+	metrics.RoomUsersTotal.Inc()
 }
 
 func (r *Room) RemoveUser(userID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.Users, userID)
+	if _, exists := r.Users[userID]; exists {
+		delete(r.Users, userID)	
+		metrics.RoomUsersTotal.Dec()
+	}
 }
 
 func (r *Room) CheckUserExists(userID string) (*User, bool) {
@@ -119,11 +124,13 @@ func (r *Room) saveToFile() {
 
 	dirPath := filepath.Join("past", r.RoomID)
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		metrics.DocumentSavesErrorsTotal.Inc()
 		return
 	}
 
 	filePath := filepath.Join(dirPath, r.RoomName)
 	if err := os.WriteFile(filePath, []byte(r.Document), 0644); err != nil {
+		metrics.DocumentSavesErrorsTotal.Inc()
 		return
 	}
 
