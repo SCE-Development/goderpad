@@ -64,7 +64,8 @@ export async function getInterviewContent(interviewId: string, apiKey: string) {
         'x-api-key': apiKey,
       }
     });
-    return await response.json();
+    const data = await response.json();
+    return { ...data, status: response.status };
   } catch (err) {
     return {
       ok: false,
