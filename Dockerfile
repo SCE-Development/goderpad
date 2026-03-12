@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o goderpad main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o goderpad ./cmd/server
 
 # Production stage
 FROM alpine:latest
