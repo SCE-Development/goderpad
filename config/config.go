@@ -12,8 +12,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port   string `yaml:"port"`
-	APIKey string `yaml:"api_key"`
+	Port           string   `yaml:"port"`
+	APIKey         string   `yaml:"api_key"`
+	AllowedOrigins []string `yaml:"allowed_origins"`
 }
 
 var AppConfig Config
@@ -39,4 +40,8 @@ func GetPort() string {
 
 func GetAPIKey() string {
 	return AppConfig.Server.APIKey
+}
+
+func GetAllowedOrigins() []string {
+	return AppConfig.Server.AllowedOrigins
 }
