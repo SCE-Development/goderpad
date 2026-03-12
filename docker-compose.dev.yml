@@ -1,7 +1,7 @@
 services:
   goderpad-backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: goderpad-backend
     ports:
@@ -17,10 +17,10 @@ services:
     ports:
       - "7777:7777"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - goderpad-backend
     environment:
       - VITE_API_URL=http://localhost:7778
       - VITE_WS_URL=ws://localhost:7778
-      - VITE_API_KEY=th3fr34knd!
