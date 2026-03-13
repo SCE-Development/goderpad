@@ -28,7 +28,7 @@ function App() {
   return (
     <UserContext.Provider value={{ userId }}>
       <DarkModeContext.Provider value={{ isDark, setIsDark }}>
-        <BrowserRouter>
+        <BrowserRouter basename="/interview">
           <div className='relative'>
             <div className='absolute top-6 right-6 z-50'>
               <button
