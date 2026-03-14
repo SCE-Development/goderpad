@@ -14,16 +14,6 @@ var (
 		[]string{"path", "method", "code"},
 	)
 
-	// HTTPRequestDurationSeconds is a summary of HTTP request latencies.
-	HTTPRequestDurationSeconds = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "http_request_duration_seconds",
-			Help:       "HTTP request latency in seconds",
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-		},
-		[]string{"path", "method", "code"},
-	)
-
 	// RoomsActive is the current number of rooms in the hub.
 	RoomsActive = prometheus.NewGauge(
 		prometheus.GaugeOpts{
@@ -86,7 +76,6 @@ var (
 func init() {
 	prometheus.MustRegister(
 		EndpointHits,
-		HTTPRequestDurationSeconds,
 		RoomsActive,
 		RoomUsersTotal,
 		RoomJoinErrorsTotal,
