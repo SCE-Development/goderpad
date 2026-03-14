@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: goderpad-backend
-    ports:
-      - "7778:7778"
     volumes:
       - ./past:/app/past
 
@@ -18,8 +16,6 @@ services:
         - VITE_WS_URL=${WS_URL}
         - VITE_API_KEY=${API_KEY}
     container_name: goderpad-frontend
-    ports:
-      - "7777:7777"
     depends_on:
       - goderpad-backend
   
