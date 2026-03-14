@@ -11,7 +11,7 @@ var (
 			Name: "endpoint_hits",
 			Help: "Total number of HTTP requests",
 		},
-		[]string{"endpoint", "method", "status"},
+		[]string{"path", "method", "code"},
 	)
 
 	// HTTPRequestDurationSeconds is a summary of HTTP request latencies.
@@ -21,7 +21,7 @@ var (
 			Help:       "HTTP request latency in seconds",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
-		[]string{"endpoint", "method", "status"},
+		[]string{"path", "method", "code"},
 	)
 
 	// RoomsActive is the current number of rooms in the hub.

@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -54,14 +54,14 @@ func main() {
 func prometheusMiddleware(c *gin.Context) {
 	start := time.Now()
 	method := c.Request.Method
-	endpoint := c.FullPath()
+	path := c.FullPath()
 
 	c.Next()
 
 	status := c.Writer.Status()
-	statusText := http.StatusText(status)
+	statusCode := strconv.Itoa(status)
 	duration := time.Since(start).Seconds()
 
-	metrics.EndpointHits.WithLabelValues(endpoint, method, statusText).Inc()
-	metrics.HTTPRequestDurationSeconds.WithLabelValues(endpoint, method, statusText).Observe(duration)
+	metrics.EndpointHits.WithLabelValues(path, method, statusCode).Inc()
+	metrics.HTTPRequestDurationSeconds.WithLabelValues(path, method, statusCode).Observe(duration)
 }
