@@ -52,6 +52,11 @@ func main() {
 }
 
 func prometheusMiddleware(c *gin.Context) {
+	if c.FullPath() == "/metrics" {
+		c.Next()
+		return
+	}
+
 	start := time.Now()
 	method := c.Request.Method
 	path := c.FullPath()
