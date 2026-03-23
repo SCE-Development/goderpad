@@ -1,24 +1,27 @@
 # Build stage
-FROM golang:1.25-alpine AS build
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
-RUN go mod download
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_API_KEY
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_API_KEY=$VITE_API_KEY
 
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o goderpad ./cmd/server
+COPY frontend/package.json .
+
+RUN npm install
+
+COPY frontend/ .
+
+RUN npm run build
 
 # Production stage
-FROM alpine:latest
+FROM nginx:alpine
 
-RUN apk --no-cache add ca-certificates
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
 
-WORKDIR /app
-
-COPY --from=build /app/goderpad .
-COPY --from=build /app/config ./config
-
-EXPOSE 7778
-
-CMD ["./goderpad"]
+CMD ["nginx", "-g", "daemon off;"]

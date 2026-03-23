@@ -2,7 +2,7 @@ services:
   goderpad-backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.backend
     container_name: goderpad-backend
     ports:
       - "7778:7778"
