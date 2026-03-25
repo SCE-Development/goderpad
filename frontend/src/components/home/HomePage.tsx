@@ -133,10 +133,10 @@ function HomePage() {
 
           <button
             onClick={handleTemplateButtonClick}
-            className={`px-6 py-3 text-base rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'text-gray-400 hover:text-white border border-slate-700 hover:border-slate-500' : 'text-gray-500 hover:text-gray-900 border border-gray-300 hover:border-gray-500'}`}
+            className={`text-base cursor-pointer transition-colors underline disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'text-white hover:text-gray-300' : 'text-gray-900 hover:text-gray-700'}`}
             disabled={!userName.trim() || !roomName.trim()}
           >
-            or create a room from a template
+            or choose a template
           </button>
         </div>
       </div>
@@ -145,7 +145,7 @@ function HomePage() {
     {showApiKeyModal && (
       <div className='fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm' onClick={() => setShowApiKeyModal(false)}>
         <form onSubmit={handleApiKeySubmit} onClick={(e) => e.stopPropagation()} className={`rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
-          <h2 className="text-xl font-bold mb-4 text-white">Enter API Key</h2>
+          <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Enter API Key</h2>
           <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>An API key is required to access interview templates.</p>
           <input
             type="password"
