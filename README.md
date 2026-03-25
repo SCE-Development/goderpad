@@ -11,3 +11,8 @@ sce conducts a cutting-edge industry pipeline through its summer internship prog
 just use docker it'll be so much easier trust me: `docker compose -f docker-compose.dev.yml up --build`
 
 the frontend runs at `http://localhost:7777` and the backend runs at `http://localhost:7778`.
+
+## production
+https://sce.sjsu.edu/interview
+
+coming soon: support for more languages
