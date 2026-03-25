@@ -1,5 +1,5 @@
 import Editor from '@monaco-editor/react';
-import { useState, useRef, useContext, useEffect } from 'react';
+import { useState, useRef, useContext, useEffect, useCallback } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
 
@@ -32,6 +32,10 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
   const [sandpackKey, setSandpackKey] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [debouncedCode, setDebouncedCode] = useState(code);
+  const [leftPercent, setLeftPercent] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const decorationsRef = useRef<string[]>([]);
   const selectionDecorationsRef = useRef<string[]>([]);
   const [visibleLabels, setVisibleLabels] = useState<Set<string>>(new Set());
@@ -148,6 +152,31 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
       }
     }
   };
+
+  const handleDividerMouseDown = useCallback(() => {
+    isDraggingRef.current = true;
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newPercent = ((e.clientX - rect.left) / rect.width) * 100;
+      setLeftPercent(Math.min(Math.max(newPercent, 20), 80));
+    };
+    const handleMouseUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const handleSandpackReload = () => {
     setHasError(false);
@@ -310,12 +339,13 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
   }, [users, userId, visibleLabels]);
 
   return (
-    <div className={`flex flex-row gap-4 ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
-      <div className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden w-1/2`}>
-        <Editor 
-          height='85vh' 
-          defaultLanguage={'javascript'} 
-          value={code} 
+    <div ref={containerRef} className={`flex flex-row ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
+      {isDragging && <div className='fixed inset-0 z-50 cursor-col-resize' />}
+      <div style={{ width: `${leftPercent}%` }} className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden`}>
+        <Editor
+          height='85vh'
+          defaultLanguage={'javascript'}
+          value={code}
           theme={isDark ? 'slate-dark' : 'vs'}
           beforeMount={handleEditorWillMount}
           onMount={handleEditorDidMount}
@@ -328,7 +358,13 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
           }}
         />
       </div>
-      <div className={`w-1/2 border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden h-[85vh] relative`}>
+      <div
+        onMouseDown={handleDividerMouseDown}
+        className={`w-3 flex-shrink-0 flex items-center justify-center cursor-col-resize group`}
+      >
+        <div className={`w-0.5 h-full rounded-full transition-colors ${isDark ? 'bg-slate-700 group-hover:bg-slate-400' : 'bg-gray-300 group-hover:bg-gray-500'}`} />
+      </div>
+      <div style={{ width: `${100 - leftPercent}%` }} className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden h-[85vh] relative`}>
         {hasError && (
           <div className='absolute top-2 right-2 z-10'>
             <button 

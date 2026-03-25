@@ -1,9 +1,10 @@
 package models
 
 type CreateRoomRequest struct {
-	UserID   string `json:"userId"`
-	Name     string `json:"name"`
-	RoomName string `json:"roomName"`
+	UserID      string `json:"userId"`
+	Name        string `json:"name"`
+	RoomName    string `json:"roomName"`
+	InitialCode string `json:"initialCode"`
 }
 
 type JoinRoomRequest struct {
