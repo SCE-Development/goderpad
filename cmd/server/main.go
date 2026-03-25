@@ -40,6 +40,7 @@ func main() {
 	r.POST("/joinRoom", handlers.JoinRoomHandler)
 	r.GET("/getRoomName/:roomID", handlers.GetRoomNameHandler)
 	r.GET("/past/:roomID", handlers.GetDocumentSaveHandler)
+	r.GET("/validateKey", handlers.ValidateKeyHandler)
 
 	r.GET("/ws/:roomID", handlers.WebSocketHandler)
 

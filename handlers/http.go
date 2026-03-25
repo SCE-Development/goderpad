@@ -85,6 +85,19 @@ func GetRoomNameHandler(c *gin.Context) {
 	})
 }
 
+func ValidateKeyHandler(c *gin.Context) {
+	apiKey := c.GetHeader("x-api-key")
+	if apiKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "API key is required"})
+		return
+	}
+	if apiKey != config.GetAPIKey() {
+		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "Invalid API key"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 func GetDocumentSaveHandler(c *gin.Context) {
 	roomID := c.Param("roomID")
 	if roomID == "" {

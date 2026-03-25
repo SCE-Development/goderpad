@@ -1,6 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7778';
 
-export async function createRoom(userId: string, name: string, roomName: string) {
+export async function createRoom(userId: string, name: string, roomName: string, initialCode?: string) {
   try {
     const response = await fetch(`${API_URL}/createRoom`, {
       method: 'POST',
@@ -11,6 +11,7 @@ export async function createRoom(userId: string, name: string, roomName: string)
         userId,
         name,
         roomName,
+        ...(initialCode !== undefined && { initialCode }),
       }),
     });
     return await response.json();
@@ -52,6 +53,23 @@ export async function getRoomName(roomId: string) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Error fetching room name'
+    };
+  }
+}
+
+export async function validateApiKey(apiKey: string) {
+  try {
+    const response = await fetch(`${API_URL}/validateKey`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      }
+    });
+    return await response.json();
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Error validating key'
     };
   }
 }
