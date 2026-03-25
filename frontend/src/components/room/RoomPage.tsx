@@ -5,7 +5,7 @@ import EnterName from './EnterName';
 import CodeEditor from './CodeEditor';
 import Popup from '../popup/Popup';
 import { DarkModeContext, UserContext } from '../../App';
-import { DEFAULT_CODE } from '../../util/constants';
+import { DEFAULT_CODE } from '../../util/templateContent';
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:7778';
 
 function RoomPage() {
