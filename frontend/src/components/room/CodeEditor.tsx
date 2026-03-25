@@ -58,6 +58,51 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
+    const VOID_ELEMENTS = new Set([
+      'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+      'link', 'meta', 'param', 'source', 'track', 'wbr'
+    ]);
+
+    editor.onDidChangeModelContent((e: any) => {
+      const change = e.changes[0];
+      if (!change || change.text !== '>') return;
+
+      const model = editor.getModel();
+      const position = editor.getPosition();
+      if (!model || !position) return;
+
+      const lineContent = model.getLineContent(position.lineNumber);
+      // Text before the cursor (the '>' was just inserted, cursor is now after it)
+      const textBeforeCursor = lineContent.substring(0, position.column - 1);
+
+      const lastOpen = textBeforeCursor.lastIndexOf('<');
+      if (lastOpen === -1) return;
+
+      const tagContent = textBeforeCursor.substring(lastOpen + 1);
+
+      // Skip closing tags and self-closing tags
+      if (tagContent.startsWith('/')) return;
+      if (tagContent.endsWith('/')) return;
+
+      const tagMatch = tagContent.match(/^([a-zA-Z][a-zA-Z0-9]*)/);
+      if (!tagMatch) return;
+
+      const tagName = tagMatch[1].toLowerCase();
+      if (VOID_ELEMENTS.has(tagName)) return;
+
+      const closingTag = `</${tagName}>`;
+      editor.executeEdits('html-auto-close', [{
+        range: new monaco.Range(
+          position.lineNumber, position.column,
+          position.lineNumber, position.column
+        ),
+        text: closingTag,
+      }]);
+
+      // Keep cursor between the opening and closing tags
+      editor.setPosition(position);
+    });
+
     editor.onDidChangeCursorPosition((e: any) => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({
