@@ -32,3 +32,6 @@ config.yaml
 
 # Document saves
 past/
+
+# Private interview template content
+frontend/src/util/templateContent.ts

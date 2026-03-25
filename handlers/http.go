@@ -19,7 +19,7 @@ func CreateRoomHandler(c *gin.Context) {
 		return
 	}
 
-	roomID, err := services.CreateRoom(req.UserID, req.Name, req.RoomName)
+	roomID, err := services.CreateRoom(req.UserID, req.Name, req.RoomName, req.InitialCode)
 	if err != nil {
 		if errors.Is(err, models.ErrRoomExists) || errors.Is(err, models.ErrRoomNil) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -83,6 +83,19 @@ func GetRoomNameHandler(c *gin.Context) {
 			"roomName": roomName,
 		},
 	})
+}
+
+func ValidateKeyHandler(c *gin.Context) {
+	apiKey := c.GetHeader("x-api-key")
+	if apiKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "API key is required"})
+		return
+	}
+	if apiKey != config.GetAPIKey() {
+		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "Invalid API key"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func GetDocumentSaveHandler(c *gin.Context) {

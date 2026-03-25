@@ -26,12 +26,16 @@ type Room struct {
 	saveDebounce *time.Timer `json:"-"`
 }
 
-func NewRoom(roomID, roomName string) *Room {
+func NewRoom(roomID, roomName, initialCode string) *Room {
+	document := utils.DEFAULT_CODE
+	if initialCode != "" {
+		document = initialCode
+	}
 	room := &Room{
 		RoomID:    roomID,
 		RoomName:  roomName,
 		CreatedAt: time.Now(),
-		Document:  utils.DEFAULT_CODE,
+		Document:  document,
 		Users:     make(map[string]*User),
 		done:      make(chan struct{}),
 		Broadcast: make(chan BroadcastMessage),
