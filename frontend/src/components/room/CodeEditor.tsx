@@ -50,10 +50,19 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
   const handleEditorWillMount = (monaco: any) => {
     monaco.editor.defineTheme('slate-dark', {
       base: 'vs-dark',
-      inherit: true,
-      rules: [],
+      inherit: false,
+      rules: [
+        { token: '', foreground: 'ffffff' },
+        { token: 'keyword', foreground: '569cd6' },
+        { token: 'keyword.flow', foreground: '569cd6' },
+        { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+        { token: 'string', foreground: 'ce9178' },
+        { token: 'number', foreground: 'b5cea8' },
+        { token: 'regexp', foreground: 'd16969' },
+      ],
       colors: {
         'editor.background': '#0f172a',
+        'editor.foreground': '#ffffff',
       },
     });
   };
