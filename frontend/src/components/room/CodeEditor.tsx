@@ -2,11 +2,27 @@ import Editor from '@monaco-editor/react';
 import { useState, useRef, useContext, useEffect, useCallback } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
+import { DEFAULT_CODE as DEFAULT_REACT_CODE } from '../../util/reactTemplateContent';
+import { DEFAULT_PYTHON_CODE, DEFAULT_JAVA_CODE, DEFAULT_CPP_CODE, DEFAULT_JAVASCRIPT_CODE } from '../../util/defaultCode';
+
+type Language = 'react' | 'javascript' | 'python' | 'cpp' | 'java';
+export type InterviewType = 'react' | 'leetcode';
+
+const LANGUAGE_OPTIONS: { value: Language; label: string; monacoLang: string; sandpackTemplate?: 'react'; defaultCode: string }[] = [
+  { value: 'react',      label: 'React',      monacoLang: 'javascript', sandpackTemplate: 'react', defaultCode: DEFAULT_REACT_CODE },
+  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript',                            defaultCode: DEFAULT_JAVASCRIPT_CODE },
+  { value: 'python',     label: 'Python',     monacoLang: 'python',                                defaultCode: DEFAULT_PYTHON_CODE },
+  { value: 'cpp',        label: 'C++',        monacoLang: 'cpp',                                   defaultCode: DEFAULT_CPP_CODE },
+  { value: 'java',       label: 'Java',       monacoLang: 'java',                                  defaultCode: DEFAULT_JAVA_CODE },
+];
+
+const LEETCODE_LANGUAGES: Language[] = ['javascript', 'python', 'cpp', 'java'];
 
 interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   ws: WebSocket | null;
+  interviewType: InterviewType;
   users: Array<{
     userId: string;
     userName: string;
@@ -23,9 +39,11 @@ interface CodeEditorProps {
   }>;
 }
 
-function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
+function CodeEditor({ code, setCode, ws, interviewType, users }: CodeEditorProps) {
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
+  const [language, setLanguage] = useState<Language>(interviewType === 'leetcode' ? 'javascript' : 'react');
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const wsRef = useRef<WebSocket | null>(ws);
@@ -347,13 +365,67 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
     };
   }, [users, userId, visibleLabels]);
 
+  const availableLanguages = interviewType === 'leetcode'
+    ? LANGUAGE_OPTIONS.filter(l => LEETCODE_LANGUAGES.includes(l.value))
+    : LANGUAGE_OPTIONS.filter(l => l.value === 'react');
+  const selectedLang = LANGUAGE_OPTIONS.find(l => l.value === language)!;
+  const showPreview = interviewType === 'react';
+
   return (
-    <div ref={containerRef} className={`flex flex-row ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
+    <div ref={containerRef} className={`relative flex flex-row ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
+      {/* Language dropdown — only shown for leetcode interviews */}
+      {interviewType === 'leetcode' && <div className='absolute top-6 left-6 z-20'>
+        <div className='relative'>
+          <button
+            onClick={() => setLangDropdownOpen(prev => !prev)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              isDark
+                ? 'bg-slate-800 text-white hover:bg-slate-700 border border-slate-600'
+                : 'bg-white text-gray-900 hover:bg-gray-200 border border-gray-300'
+            }`}
+          >
+            {selectedLang.label}
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              width='14'
+              height='14'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              className={`transition-transform ${langDropdownOpen ? 'rotate-180' : ''}`}
+            >
+              <polyline points='6 9 12 15 18 9' />
+            </svg>
+          </button>
+          {langDropdownOpen && (
+            <div className={`absolute top-full mt-1 left-0 rounded-lg shadow-lg overflow-hidden border ${
+              isDark ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'
+            }`}>
+              {availableLanguages.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setLanguage(opt.value); setCode(opt.defaultCode); setLangDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                    opt.value === language
+                      ? isDark ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-900'
+                      : isDark ? 'text-white hover:bg-slate-700' : 'text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>}
       {isDragging && <div className='fixed inset-0 z-50 cursor-col-resize' />}
       <div style={{ width: `${leftPercent}%` }} className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden`}>
         <Editor
           height='85vh'
-          defaultLanguage={'javascript'}
+          language={selectedLang.monacoLang}
           value={code}
           theme={isDark ? 'slate-dark' : 'vs'}
           beforeMount={handleEditorWillMount}
@@ -374,38 +446,46 @@ function CodeEditor({ code, setCode, ws, users }: CodeEditorProps) {
         <div className={`w-0.5 h-full rounded-full transition-colors ${isDark ? 'bg-slate-700 group-hover:bg-slate-400' : 'bg-gray-300 group-hover:bg-gray-500'}`} />
       </div>
       <div style={{ width: `${100 - leftPercent}%` }} className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden h-[85vh] relative`}>
-        {hasError && (
-          <div className='absolute top-2 right-2 z-10'>
-            <button 
-              onClick={handleSandpackReload}
-              className='bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded'
+        {showPreview ? (
+          <>
+            {hasError && (
+              <div className='absolute top-2 right-2 z-10'>
+                <button
+                  onClick={handleSandpackReload}
+                  className='bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded'
+                >
+                  Reload Preview
+                </button>
+              </div>
+            )}
+            <SandpackProvider
+              key={`${sandpackKey}-${language}`}
+              template={selectedLang.sandpackTemplate}
+              files={{
+                '/App.js': debouncedCode,
+              }}
+              theme={isDark ? 'dark' : 'light'}
+              options={{
+                externalResources: [],
+                bundlerURL: 'https://sandpack-bundler.codesandbox.io',
+                recompileMode: 'delayed',
+                recompileDelay: 300,
+                autoReload: true,
+              }}
+              style={{ height: '100%' }}
             >
-              Reload Preview
-            </button>
+              <SandpackPreview
+                style={{ height: '100%' }}
+                showOpenInCodeSandbox={false}
+                showRefreshButton={true}
+              />
+            </SandpackProvider>
+          </>
+        ) : (
+          <div className={`flex items-center justify-center h-full ${isDark ? 'bg-slate-900 text-slate-400' : 'bg-gray-100 text-gray-500'}`}>
+            <p className='text-sm'>Preview not available for {selectedLang.label}</p>
           </div>
         )}
-        <SandpackProvider
-          key={sandpackKey}
-          template={'react'}
-          files={{
-            '/App.js': debouncedCode,
-          }}
-          theme={isDark ? 'dark' : 'light'}
-          options={{
-            externalResources: [],
-            bundlerURL: 'https://sandpack-bundler.codesandbox.io',
-            recompileMode: 'delayed',
-            recompileDelay: 300,
-            autoReload: true,
-          }}
-          style={{ height: '100%' }}
-        >
-          <SandpackPreview 
-            style={{ height: '100%' }}
-            showOpenInCodeSandbox={false}
-            showRefreshButton={true}
-          />
-        </SandpackProvider>
       </div>
     </div>
   );

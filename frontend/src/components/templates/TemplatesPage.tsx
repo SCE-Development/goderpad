@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DarkModeContext, UserContext } from '../../App';
 import { createRoom } from '../../api/api';
-import { TEMPLATES, type Template } from '../../util/templateContent';
+import { TEMPLATES, type Template } from '../../util/reactTemplateContent';
 
 function TemplatesPage() {
   const { isDark } = useContext(DarkModeContext);
