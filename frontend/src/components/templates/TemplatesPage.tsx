@@ -18,7 +18,7 @@ function TemplatesPage() {
 
   const handleSelectTemplate = async (template: Template) => {
     const finalRoomName = roomName || template.name;
-    const response = await createRoom(userId, userName, finalRoomName, template.code);
+    const response = await createRoom(userId, userName, finalRoomName, 'react', template.code);
     if (response.ok) {
       const roomId = response.data.roomId;
       const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);

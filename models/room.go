@@ -26,8 +26,8 @@ type Room struct {
 	saveDebounce *time.Timer `json:"-"`
 }
 
-func NewRoom(roomID, roomName, initialCode string) *Room {
-	document := utils.DEFAULT_CODE
+func NewRoom(roomID, roomName, language, initialCode string) *Room {
+	document := utils.DefaultCodeForLanguage(language)
 	if initialCode != "" {
 		document = initialCode
 	}

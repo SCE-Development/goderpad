@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useContext, useRef } from 'react';
 import { joinRoom, getRoomName } from '../../api/api';
 import EnterName from './EnterName';
@@ -12,9 +12,11 @@ interface RoomPageProps {
   interviewType?: InterviewType;
 }
 
-function RoomPage({ interviewType = 'react' }: RoomPageProps) {
+function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const interviewType: InterviewType = (location.state as { interviewType?: InterviewType })?.interviewType ?? propInterviewType ?? 'react';
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
   const [userName, setUserName] = useState('');

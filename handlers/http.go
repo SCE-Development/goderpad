@@ -19,7 +19,7 @@ func CreateRoomHandler(c *gin.Context) {
 		return
 	}
 
-	roomID, err := services.CreateRoom(req.UserID, req.Name, req.RoomName, req.InitialCode)
+	roomID, err := services.CreateRoom(req.UserID, req.Name, req.RoomName, req.Language, req.InitialCode)
 	if err != nil {
 		if errors.Is(err, models.ErrRoomExists) || errors.Is(err, models.ErrRoomNil) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

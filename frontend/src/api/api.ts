@@ -1,6 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7778';
 
-export async function createRoom(userId: string, name: string, roomName: string, initialCode?: string) {
+export async function createRoom(userId: string, name: string, roomName: string, language: string, initialCode?: string) {
   try {
     const response = await fetch(`${API_URL}/createRoom`, {
       method: 'POST',
@@ -11,6 +11,7 @@ export async function createRoom(userId: string, name: string, roomName: string,
         userId,
         name,
         roomName,
+        language,
         ...(initialCode !== undefined && { initialCode }),
       }),
     });
