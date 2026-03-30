@@ -46,10 +46,21 @@ func JoinRoom(userID, name, roomID string) (map[string]any, error) {
 
 	response := map[string]any{
 		"roomName": room.RoomName,
-		"document": room.Document,
+		"document": room.GetDocument(),
+		"language": room.Language,
 		"users":    room.GetCurrentUsers(),
 	}
 	return response, nil
+}
+
+func SwitchLanguage(roomID, language string) (string, error) {
+	hub := models.GetHub()
+	room, exists := hub.GetRoom(roomID)
+	if !exists {
+		return "", models.ErrRoomNotFound
+	}
+	document := room.SwitchLanguage(language)
+	return document, nil
 }
 
 func GetRoomName(roomID string) (string, error) {

@@ -326,6 +326,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
         code={code}
         setCode={setCode}
         ws={ws}
+        roomId={roomId!}
         interviewType={interviewType}
         users={users}
       />

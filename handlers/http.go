@@ -55,6 +55,7 @@ func JoinRoomHandler(c *gin.Context) {
 		"data": map[string]any{
 			"roomName": response["roomName"],
 			"document": response["document"],
+			"language": response["language"],
 			"users":    response["users"],
 		},
 	})
@@ -81,6 +82,32 @@ func GetRoomNameHandler(c *gin.Context) {
 		"ok": true,
 		"data": map[string]any{
 			"roomName": roomName,
+		},
+	})
+}
+
+func SwitchLanguageHandler(c *gin.Context) {
+	var req models.SwitchLanguageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	document, err := services.SwitchLanguage(req.RoomID, req.Language)
+	if err != nil {
+		if errors.Is(err, models.ErrRoomNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"ok": true,
+		"data": map[string]any{
+			"document": document,
+			"language": req.Language,
 		},
 	})
 }

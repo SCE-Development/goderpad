@@ -46,6 +46,24 @@ export async function joinRoom(userId: string, name: string, roomId: string) {
   }
 }
 
+export async function switchLanguage(roomId: string, language: string) {
+  try {
+    const response = await fetch(`${API_URL}/switchLanguage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roomId, language }),
+    });
+    return await response.json();
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Error switching language'
+    };
+  }
+}
+
 export async function getRoomName(roomId: string) {
   try {
     const response = await fetch(`${API_URL}/getRoomName/${roomId}`);

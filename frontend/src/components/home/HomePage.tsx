@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { DarkModeContext, UserContext } from '../../App';
 import Popup from '../popup/Popup';
 import { TEMPLATES, DEFAULT_CODE as DEFAULT_REACT_CODE } from '../../util/reactTemplateContent';
-import { DEFAULT_JAVASCRIPT_CODE } from '../../util/defaultCode';
 import { type InterviewType } from '../room/CodeEditor';
 
 interface TemplateCard {
@@ -24,7 +23,7 @@ const REACT_CARD: TemplateCard = {
 const LEETCODE_CARD: TemplateCard = {
   name: 'leetcode interview',
   description: 'write code in python, c++, java, or javascript',
-  code: DEFAULT_JAVASCRIPT_CODE,
+  code: `function main() {\n  console.log("Hello, World!");\n}`,
   interviewType: 'leetcode',
 };
 

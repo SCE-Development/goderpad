@@ -2,26 +2,26 @@ import Editor from '@monaco-editor/react';
 import { useState, useRef, useContext, useEffect, useCallback } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
-import { DEFAULT_CODE as DEFAULT_REACT_CODE } from '../../util/reactTemplateContent';
-import { DEFAULT_PYTHON_CODE, DEFAULT_JAVA_CODE, DEFAULT_CPP_CODE, DEFAULT_JAVASCRIPT_CODE } from '../../util/defaultCode';
+import { switchLanguage } from '../../api/api';
 
 type Language = 'react' | 'javascript' | 'python' | 'cpp' | 'java';
 export type InterviewType = 'react' | 'leetcode';
 
-const LANGUAGE_OPTIONS: { value: Language; label: string; monacoLang: string; sandpackTemplate?: 'react'; defaultCode: string }[] = [
-  { value: 'react',      label: 'React',      monacoLang: 'javascript', sandpackTemplate: 'react', defaultCode: DEFAULT_REACT_CODE },
-  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript',                            defaultCode: DEFAULT_JAVASCRIPT_CODE },
-  { value: 'python',     label: 'Python',     monacoLang: 'python',                                defaultCode: DEFAULT_PYTHON_CODE },
-  { value: 'cpp',        label: 'C++',        monacoLang: 'cpp',                                   defaultCode: DEFAULT_CPP_CODE },
-  { value: 'java',       label: 'Java',       monacoLang: 'java',                                  defaultCode: DEFAULT_JAVA_CODE },
+const LANGUAGE_OPTIONS: { value: Language; label: string; monacoLang: string; sandpackTemplate?: 'react' }[] = [
+  { value: 'react',      label: 'React',      monacoLang: 'javascript', sandpackTemplate: 'react' },
+  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
+  { value: 'python',     label: 'Python',     monacoLang: 'python' },
+  { value: 'cpp',        label: 'C++',        monacoLang: 'cpp' },
+  { value: 'java',       label: 'Java',       monacoLang: 'java' },
 ];
 
-const LEETCODE_LANGUAGES: Language[] = ['javascript', 'python', 'cpp', 'java'];
+const LEETCODE_LANGUAGES: Language[] = ['python', 'cpp', 'java', 'javascript'];
 
 interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
   ws: WebSocket | null;
+  roomId: string;
   interviewType: InterviewType;
   users: Array<{
     userId: string;
@@ -39,7 +39,7 @@ interface CodeEditorProps {
   }>;
 }
 
-function CodeEditor({ code, setCode, ws, interviewType, users }: CodeEditorProps) {
+function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEditorProps) {
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
   const [language, setLanguage] = useState<Language>(interviewType === 'leetcode' ? 'javascript' : 'react');
@@ -366,7 +366,7 @@ function CodeEditor({ code, setCode, ws, interviewType, users }: CodeEditorProps
   }, [users, userId, visibleLabels]);
 
   const availableLanguages = interviewType === 'leetcode'
-    ? LANGUAGE_OPTIONS.filter(l => LEETCODE_LANGUAGES.includes(l.value))
+    ? LEETCODE_LANGUAGES.map(lang => LANGUAGE_OPTIONS.find(l => l.value === lang)!)
     : LANGUAGE_OPTIONS.filter(l => l.value === 'react');
   const selectedLang = LANGUAGE_OPTIONS.find(l => l.value === language)!;
   const showPreview = interviewType === 'react';
@@ -407,7 +407,21 @@ function CodeEditor({ code, setCode, ws, interviewType, users }: CodeEditorProps
               {availableLanguages.map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => { setLanguage(opt.value); setCode(opt.defaultCode); setLangDropdownOpen(false); }}
+                  onClick={async () => {
+                    setLangDropdownOpen(false);
+                    const response = await switchLanguage(roomId, opt.value);
+                    if (response.ok) {
+                      setLanguage(opt.value);
+                      setCode(response.data.document);
+                      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({
+                          userId,
+                          type: 'code_update',
+                          payload: { code: response.data.document }
+                        }));
+                      }
+                    }
+                  }}
                   className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                     opt.value === language
                       ? isDark ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-900'

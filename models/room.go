@@ -14,7 +14,8 @@ type Room struct {
 	RoomID    string                `json:"roomId"`
 	RoomName  string                `json:"roomName"`
 	CreatedAt time.Time             `json:"-"`
-	Document  string                `json:"document"`
+	Language  string                `json:"language"`
+	Documents map[string]string     `json:"documents"`
 	Users     map[string]*User      `json:"users"`
 	Broadcast chan BroadcastMessage `json:"-"`
 	done      chan struct{}         `json:"-"`
@@ -31,11 +32,14 @@ func NewRoom(roomID, roomName, language, initialCode string) *Room {
 	if initialCode != "" {
 		document = initialCode
 	}
+	documents := make(map[string]string)
+	documents[language] = document
 	room := &Room{
 		RoomID:    roomID,
 		RoomName:  roomName,
 		CreatedAt: time.Now(),
-		Document:  document,
+		Language:  language,
+		Documents: documents,
 		Users:     make(map[string]*User),
 		done:      make(chan struct{}),
 		Broadcast: make(chan BroadcastMessage),
@@ -47,6 +51,23 @@ func NewRoom(roomID, roomName, language, initialCode string) *Room {
 func (r *Room) Close() {
 	close(r.done)
 	close(r.Broadcast)
+}
+
+func (r *Room) GetDocument() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.Documents[r.Language]
+}
+
+func (r *Room) SwitchLanguage(language string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.Language = language
+	if doc, exists := r.Documents[language]; exists {
+		return doc
+	}
+	r.Documents[language] = utils.DefaultCodeForLanguage(language)
+	return r.Documents[language]
 }
 
 func (r *Room) AddUser(user *User) {
@@ -92,7 +113,7 @@ func (r *Room) BroadcastToUsers() {
 			r.mu.Lock()
 			if msg.Type == "code_update" {
 				if code, ok := msg.Payload["code"].(string); ok {
-					r.Document = code
+					r.Documents[r.Language] = code
 					r.dirty = true
 					r.scheduleSave()
 				}
@@ -133,7 +154,7 @@ func (r *Room) saveToFile() {
 	}
 
 	filePath := filepath.Join(dirPath, r.RoomName)
-	if err := os.WriteFile(filePath, []byte(r.Document), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(r.Documents[r.Language]), 0644); err != nil {
 		metrics.DocumentSavesErrorsTotal.Inc()
 		return
 	}

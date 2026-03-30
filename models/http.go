@@ -13,3 +13,8 @@ type JoinRoomRequest struct {
 	Name   string `json:"name"`
 	RoomID string `json:"roomId"`
 }
+
+type SwitchLanguageRequest struct {
+	RoomID   string `json:"roomId"`
+	Language string `json:"language"`
+}
