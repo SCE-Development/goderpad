@@ -12,9 +12,11 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port           string   `yaml:"port"`
-	APIKey         string   `yaml:"api_key"`
-	AllowedOrigins []string `yaml:"allowed_origins"`
+	Port                  string   `yaml:"port"`
+	APIKey                string   `yaml:"api_key"`
+	AllowedOrigins        []string `yaml:"allowed_origins"`
+	EnableExecutionImages bool     `yaml:"enable_execution_images"`
+	DockerBinaryPath      string   `yaml:"docker_binary_path"`
 }
 
 var AppConfig Config
@@ -44,4 +46,15 @@ func GetAPIKey() string {
 
 func GetAllowedOrigins() []string {
 	return AppConfig.Server.AllowedOrigins
+}
+
+func GetEnableExecutionImages() bool {
+	return AppConfig.Server.EnableExecutionImages
+}
+
+func GetDockerBinaryPath() string {
+	if AppConfig.Server.DockerBinaryPath != "" {
+		return AppConfig.Server.DockerBinaryPath
+	}
+	return "docker"
 }

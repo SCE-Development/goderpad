@@ -36,6 +36,7 @@ func main() {
 		})
 	})
 
+	r.POST("/execute", handlers.ExecuteHandler)
 	r.POST("/createRoom", handlers.CreateRoomHandler)
 	r.POST("/joinRoom", handlers.JoinRoomHandler)
 	r.POST("/switchLanguage", handlers.SwitchLanguageHandler)
@@ -48,6 +49,9 @@ func main() {
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	go services.DeleteRoomSaves()
+	if config.GetEnableExecutionImages() {
+		go handlers.BuildExecutionImages()
+	}
 
 	r.Run(":" + config.GetPort())
 }

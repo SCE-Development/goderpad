@@ -2,18 +2,24 @@ import Editor from '@monaco-editor/react';
 import { useState, useRef, useContext, useEffect, useCallback } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
-import { switchLanguage } from '../../api/api';
+import { switchLanguage, executeCode } from '../../api/api';
 
 type Language = 'react' | 'javascript' | 'python' | 'cpp' | 'java';
 export type InterviewType = 'react' | 'leetcode';
 
-const LANGUAGE_OPTIONS: { value: Language; label: string; monacoLang: string; sandpackTemplate?: 'react' }[] = [
+const LANGUAGE_OPTIONS: { value: Language; label: string; monacoLang: string; sandpackTemplate?: 'react', execLang?: string }[] = [
   { value: 'react',      label: 'React',      monacoLang: 'javascript', sandpackTemplate: 'react' },
-  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
-  { value: 'python',     label: 'Python',     monacoLang: 'python' },
-  { value: 'cpp',        label: 'C++',        monacoLang: 'cpp' },
-  { value: 'java',       label: 'Java',       monacoLang: 'java' },
+  { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' , execLang: 'javascript'},
+  { value: 'python',     label: 'Python',     monacoLang: 'python' , execLang: 'python'},
+  { value: 'cpp',        label: 'C++',        monacoLang: 'cpp' , execLang: 'c++'},
+  { value: 'java',       label: 'Java',       monacoLang: 'java' , execLang: 'java'},
 ];
+
+interface RunOutput {
+  stdout: string;
+  stderr: string;
+  code: number | null;
+}
 
 const LEETCODE_LANGUAGES: Language[] = ['python', 'cpp', 'java', 'javascript'];
 
@@ -44,6 +50,9 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
   const { userId } = useContext(UserContext);
   const [language, setLanguage] = useState<Language>(interviewType === 'leetcode' ? 'javascript' : 'react');
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [runOutput, setRunOutput] = useState<RunOutput | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const wsRef = useRef<WebSocket | null>(ws);
@@ -365,6 +374,24 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
     };
   }, [users, userId, visibleLabels]);
 
+  const runCode = async () => {
+    if (!selectedLang.execLang) return;
+    setIsRunning(true);
+    setRunOutput(null);
+    setRunError(null);
+    const data = await executeCode(selectedLang.execLang, code);
+    setIsRunning(false);
+    if (data.ok === false) {
+      setRunError(data.error || 'failed to run code');
+    } else {
+      setRunOutput({
+        stdout: data.stdout,
+        stderr: data.stderr,
+        code: data.code,
+      });
+    }
+  };
+
   const availableLanguages = interviewType === 'leetcode'
     ? LEETCODE_LANGUAGES.map(lang => LANGUAGE_OPTIONS.find(l => l.value === lang)!)
     : LANGUAGE_OPTIONS.filter(l => l.value === 'react');
@@ -496,8 +523,53 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
             </SandpackProvider>
           </>
         ) : (
-          <div className={`flex items-center justify-center h-full ${isDark ? 'bg-slate-900 text-slate-400' : 'bg-gray-100 text-gray-500'}`}>
-            <p className='text-sm'>Preview not available for {selectedLang.label}</p>
+          <div className='flex flex-col h-full bg-[#1e1e1e] text-white font-mono text-sm'>
+            <div className='flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-[#3e3e3e] flex-shrink-0'>
+              <span className='text-gray-400 text-xs uppercase tracking-wider'>Output</span>
+              <button
+                onClick={runCode}
+                disabled={isRunning}
+                className='flex items-center gap-1.5 px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors'
+              >
+                {isRunning ? (
+                  <>
+                    <svg className='animate-spin' xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 24 24'>
+                      <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4' />
+                      <path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8v8z' />
+                    </svg>
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='currentColor'>
+                      <polygon points='5,3 19,12 5,21' />
+                    </svg>
+                    Run
+                  </>
+                )}
+              </button>
+            </div>
+            <div className='flex-1 overflow-y-auto p-4'>
+              {runError && (
+                <p className='text-red-400'>{runError}</p>
+              )}
+              {runOutput && (
+                <>
+                  {runOutput.stdout && (
+                    <pre className='whitespace-pre-wrap text-gray-100'>{runOutput.stdout}</pre>
+                  )}
+                  {runOutput.stderr && (
+                    <pre className='whitespace-pre-wrap text-red-400 mt-2'>{runOutput.stderr}</pre>
+                  )}
+                  <p className={`mt-3 text-xs ${runOutput.code === 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    exited with code {runOutput.code}
+                  </p>
+                </>
+              )}
+              {!runOutput && !runError && !isRunning && (
+                <p className='text-gray-500'>press Run to execute your code</p>
+              )}
+            </div>
           </div>
         )}
       </div>

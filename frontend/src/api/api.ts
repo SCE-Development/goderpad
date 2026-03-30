@@ -1,5 +1,18 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7778';
 
+export async function executeCode(language: string, code: string) {
+  try {
+    const response = await fetch(`${API_URL}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language, code }),
+    });
+    return await response.json();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'failed to reach execution service' };
+  }
+}
+
 export async function createRoom(userId: string, name: string, roomName: string, language: string, initialCode?: string) {
   try {
     const response = await fetch(`${API_URL}/createRoom`, {
