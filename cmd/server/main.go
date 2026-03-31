@@ -54,19 +54,19 @@ func main() {
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	go services.DeleteRoomSaves()
-	if config.GetEnableExecutionImages() {
+
+	if config.GetEnableCodeExecution() {
 		go execution.BuildImages()
-	}
 
-	// Initialize Redis and start result listener
-	if err := redisclient.Init(); err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
-	}
-	defer redisclient.Close()
+		if err := redisclient.Init(); err != nil {
+			log.Fatalf("Failed to connect to Redis: %v", err)
+		}
+		defer redisclient.Close()
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	go services.StartResultListener(ctx)
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		go services.StartResultListener(ctx)
+	}
 
 	r.Run(":" + config.GetPort())
 }

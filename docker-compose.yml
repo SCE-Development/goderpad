@@ -2,6 +2,8 @@ services:
   goderpad-redis:
     image: redis:7-alpine
     container_name: goderpad-redis
+    profiles:
+      - code-execution
 
   goderpad-backend:
     build:
@@ -12,8 +14,6 @@ services:
       - REDIS_ADDR=goderpad-redis:6379
     volumes:
       - ./past:/app/past
-    depends_on:
-      - goderpad-redis
 
   goderpad-runner:
     build:
@@ -26,6 +26,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - goderpad-redis
+    profiles:
+      - code-execution
 
   goderpad-nginx:
     build:

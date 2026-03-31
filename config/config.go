@@ -22,7 +22,7 @@ type ServerConfig struct {
 	Port                  string   `yaml:"port"`
 	APIKey                string   `yaml:"api_key"`
 	AllowedOrigins        []string `yaml:"allowed_origins"`
-	EnableExecutionImages bool     `yaml:"enable_execution_images"`
+	EnableCodeExecution bool `yaml:"enable_code_execution"`
 	DockerBinaryPath      string   `yaml:"docker_binary_path"`
 }
 
@@ -55,8 +55,8 @@ func GetAllowedOrigins() []string {
 	return AppConfig.Server.AllowedOrigins
 }
 
-func GetEnableExecutionImages() bool {
-	return AppConfig.Server.EnableExecutionImages
+func GetEnableCodeExecution() bool {
+	return AppConfig.Server.EnableCodeExecution
 }
 
 func GetRedisAddr() string {

@@ -36,7 +36,7 @@ func main() {
 	defer redisclient.Close()
 
 	// Build sandbox Docker images before accepting jobs
-	if config.GetEnableExecutionImages() {
+	if config.GetEnableCodeExecution() {
 		execution.BuildImages()
 	}
 

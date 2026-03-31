@@ -15,10 +15,10 @@ type executeRequest struct {
 }
 
 func ExecuteHandler(c *gin.Context) {
-	if !config.GetEnableExecutionImages() {
+	if !config.GetEnableCodeExecution() {
 		c.JSON(http.StatusOK, execution.Result{
 			Stdout: "",
-			Stderr: "code execution is disabled! to enable, set enable_execution_images: true in config/config.yml and restart the server.",
+			Stderr: "code execution is disabled! to enable, set enable_code_execution: true in config/config.yml and restart the server.",
 			Code:   -1,
 		})
 		return

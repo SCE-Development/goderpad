@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"goderpad/config"
 	"goderpad/metrics"
 	"goderpad/models"
 	"goderpad/services"
@@ -119,6 +120,19 @@ func readBroadcastsFromUser(user *models.User, room *models.Room) {
 			}
 		}
 		if msg.Type == string(models.ExecuteRequestMessageType) {
+			if !config.GetEnableCodeExecution() {
+				user.Send <- models.BroadcastMessage{
+					UserID: user.UserID,
+					Type:   string(models.ExecuteResultMessageType),
+					Payload: map[string]any{
+						"userId": user.UserID,
+						"stdout": "",
+						"stderr": "code execution is disabled! to enable, set enable_code_execution: true in config/config.yml and restart the server.",
+						"code":   -1,
+					},
+				}
+				continue
+			}
 			language, _ := msg.Payload["language"].(string)
 			code, _ := msg.Payload["code"].(string)
 			jobID := fmt.Sprintf("%s:%s:%d", room.RoomID, user.UserID, time.Now().UnixNano())
