@@ -23,7 +23,7 @@ const REACT_CARD: TemplateCard = {
 const LEETCODE_CARD: TemplateCard = {
   name: 'leetcode interview',
   description: 'write code in python, c++, java, or javascript',
-  code: `function main() {\n  console.log("Hello, World!");\n}`,
+  code: `def main():\n    print("Hello, World!")\n\nmain()`,
   interviewType: 'leetcode',
 };
 
@@ -59,7 +59,7 @@ function HomePage() {
 
   const handleSelectTemplate = async (template: TemplateCard) => {
     const finalRoomName = roomName || template.name;
-    const language = template.interviewType === 'leetcode' ? 'javascript' : 'react';
+    const language = template.interviewType === 'leetcode' ? 'python' : 'react';
     const response = await createRoom(userId, userName, finalRoomName, language, template.code);
     if (response.ok) {
       const roomId = response.data.roomId;

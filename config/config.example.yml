@@ -6,3 +6,8 @@ server:
   allowed_origins:
     - "http://localhost:7777"
     - "http://localhost:5173"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0

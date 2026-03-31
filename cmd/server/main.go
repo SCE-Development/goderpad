@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"goderpad/config"
+	"goderpad/execution"
 	"goderpad/handlers"
 	"goderpad/metrics"
+	"goderpad/redisclient"
 	"goderpad/services"
 )
 
@@ -50,8 +55,18 @@ func main() {
 
 	go services.DeleteRoomSaves()
 	if config.GetEnableExecutionImages() {
-		go handlers.BuildExecutionImages()
+		go execution.BuildImages()
 	}
+
+	// Initialize Redis and start result listener
+	if err := redisclient.Init(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	defer redisclient.Close()
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	go services.StartResultListener(ctx)
 
 	r.Run(":" + config.GetPort())
 }

@@ -1,4 +1,10 @@
 services:
+  goderpad-redis:
+    image: redis:7-alpine
+    container_name: goderpad-redis
+    ports:
+      - "6379:6379"
+
   goderpad-backend:
     build:
       context: .
@@ -6,8 +12,24 @@ services:
     container_name: goderpad-backend
     ports:
       - "7778:7778"
+    environment:
+      - REDIS_ADDR=goderpad-redis:6379
     volumes:
       - ./past:/app/past
+    depends_on:
+      - goderpad-redis
+
+  goderpad-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    container_name: goderpad-runner
+    environment:
+      - REDIS_ADDR=goderpad-redis:6379
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - goderpad-redis
 
   goderpad-frontend:
     build:
@@ -24,7 +46,7 @@ services:
     environment:
       - VITE_API_URL=http://localhost:7778
       - VITE_WS_URL=ws://localhost:7778
-    
+
   goderpad-nginx:
     image: nginx:alpine
     volumes:

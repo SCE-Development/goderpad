@@ -2,7 +2,7 @@ import Editor from '@monaco-editor/react';
 import { useState, useRef, useContext, useEffect, useCallback } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
-import { switchLanguage, executeCode } from '../../api/api';
+import { switchLanguage } from '../../api/api';
 
 type Language = 'react' | 'javascript' | 'python' | 'cpp' | 'java';
 export type InterviewType = 'react' | 'leetcode';
@@ -48,7 +48,7 @@ interface CodeEditorProps {
 function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEditorProps) {
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
-  const [language, setLanguage] = useState<Language>(interviewType === 'leetcode' ? 'javascript' : 'react');
+  const [language, setLanguage] = useState<Language>(interviewType === 'leetcode' ? 'python' : 'react');
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [runOutput, setRunOutput] = useState<RunOutput | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -374,22 +374,43 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
     };
   }, [users, userId, visibleLabels]);
 
-  const runCode = async () => {
+  // Listen for execute_result messages on the WebSocket
+  useEffect(() => {
+    if (!ws) return;
+    const handler = (event: MessageEvent) => {
+      const message = JSON.parse(event.data);
+      if (message.type === 'execute_result') {
+        setIsRunning(false);
+        const payload = message.payload;
+        if (payload.stderr && !payload.stdout && payload.code !== 0) {
+          setRunError(payload.stderr);
+        } else {
+          setRunOutput({
+            stdout: payload.stdout,
+            stderr: payload.stderr,
+            code: payload.code,
+          });
+        }
+      }
+    };
+    ws.addEventListener('message', handler);
+    return () => ws.removeEventListener('message', handler);
+  }, [ws]);
+
+  const runCode = () => {
     if (!selectedLang.execLang) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
     setIsRunning(true);
     setRunOutput(null);
     setRunError(null);
-    const data = await executeCode(selectedLang.execLang, code);
-    setIsRunning(false);
-    if (data.ok === false) {
-      setRunError(data.error || 'failed to run code');
-    } else {
-      setRunOutput({
-        stdout: data.stdout,
-        stderr: data.stderr,
-        code: data.code,
-      });
-    }
+    ws.send(JSON.stringify({
+      userId,
+      type: 'execute_request',
+      payload: {
+        language: selectedLang.execLang,
+        code: code,
+      }
+    }));
   };
 
   const availableLanguages = interviewType === 'leetcode'

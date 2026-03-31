@@ -9,6 +9,13 @@ import (
 
 type Config struct {
 	Server ServerConfig `yaml:"server"`
+	Redis  RedisConfig  `yaml:"redis"`
+}
+
+type RedisConfig struct {
+	Addr     string `yaml:"addr"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
 }
 
 type ServerConfig struct {
@@ -50,6 +57,24 @@ func GetAllowedOrigins() []string {
 
 func GetEnableExecutionImages() bool {
 	return AppConfig.Server.EnableExecutionImages
+}
+
+func GetRedisAddr() string {
+	if env := os.Getenv("REDIS_ADDR"); env != "" {
+		return env
+	}
+	if AppConfig.Redis.Addr != "" {
+		return AppConfig.Redis.Addr
+	}
+	return "localhost:6379"
+}
+
+func GetRedisPassword() string {
+	return AppConfig.Redis.Password
+}
+
+func GetRedisDB() int {
+	return AppConfig.Redis.DB
 }
 
 func GetDockerBinaryPath() string {
