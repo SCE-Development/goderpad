@@ -1,6 +1,19 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7778';
 
-export async function createRoom(userId: string, name: string, roomName: string, initialCode?: string) {
+export async function executeCode(language: string, code: string) {
+  try {
+    const response = await fetch(`${API_URL}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language, code }),
+    });
+    return await response.json();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'failed to reach execution service' };
+  }
+}
+
+export async function createRoom(userId: string, name: string, roomName: string, language: string, initialCode?: string) {
   try {
     const response = await fetch(`${API_URL}/createRoom`, {
       method: 'POST',
@@ -11,6 +24,7 @@ export async function createRoom(userId: string, name: string, roomName: string,
         userId,
         name,
         roomName,
+        language,
         ...(initialCode !== undefined && { initialCode }),
       }),
     });
@@ -41,6 +55,24 @@ export async function joinRoom(userId: string, name: string, roomId: string) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Error joining room'
+    };
+  }
+}
+
+export async function switchLanguage(roomId: string, language: string) {
+  try {
+    const response = await fetch(`${API_URL}/switchLanguage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roomId, language }),
+    });
+    return await response.json();
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Error switching language'
     };
   }
 }

@@ -1,6 +1,13 @@
 server:
   port: YOUR_PORT_HERE
   api_key: YOUR_API_KEY_HERE
+  enable_code_execution: false
+  docker_binary_path: ""  # leave empty to use "docker" from $PATH, or set full path e.g. /usr/local/bin/docker
   allowed_origins:
     - "http://localhost:7777"
     - "http://localhost:5173"
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0

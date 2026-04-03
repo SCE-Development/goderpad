@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"goderpad/config"
+	"goderpad/execution"
 	"goderpad/handlers"
 	"goderpad/metrics"
+	"goderpad/redisclient"
 	"goderpad/services"
 )
 
@@ -36,8 +41,10 @@ func main() {
 		})
 	})
 
+	r.POST("/execute", handlers.ExecuteHandler)
 	r.POST("/createRoom", handlers.CreateRoomHandler)
 	r.POST("/joinRoom", handlers.JoinRoomHandler)
+	r.POST("/switchLanguage", handlers.SwitchLanguageHandler)
 	r.GET("/getRoomName/:roomID", handlers.GetRoomNameHandler)
 	r.GET("/past/:roomID", handlers.GetDocumentSaveHandler)
 	r.GET("/validateKey", handlers.ValidateKeyHandler)
@@ -47,6 +54,19 @@ func main() {
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	go services.DeleteRoomSaves()
+
+	if config.GetEnableCodeExecution() {
+		go execution.BuildImages()
+
+		if err := redisclient.Init(); err != nil {
+			log.Fatalf("Failed to connect to Redis: %v", err)
+		}
+		defer redisclient.Close()
+
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		go services.StartResultListener(ctx)
+	}
 
 	r.Run(":" + config.GetPort())
 }

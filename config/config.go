@@ -9,12 +9,21 @@ import (
 
 type Config struct {
 	Server ServerConfig `yaml:"server"`
+	Redis  RedisConfig  `yaml:"redis"`
+}
+
+type RedisConfig struct {
+	Addr     string `yaml:"addr"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
 }
 
 type ServerConfig struct {
-	Port           string   `yaml:"port"`
-	APIKey         string   `yaml:"api_key"`
-	AllowedOrigins []string `yaml:"allowed_origins"`
+	Port                  string   `yaml:"port"`
+	APIKey                string   `yaml:"api_key"`
+	AllowedOrigins        []string `yaml:"allowed_origins"`
+	EnableCodeExecution bool `yaml:"enable_code_execution"`
+	DockerBinaryPath      string   `yaml:"docker_binary_path"`
 }
 
 var AppConfig Config
@@ -44,4 +53,33 @@ func GetAPIKey() string {
 
 func GetAllowedOrigins() []string {
 	return AppConfig.Server.AllowedOrigins
+}
+
+func GetEnableCodeExecution() bool {
+	return AppConfig.Server.EnableCodeExecution
+}
+
+func GetRedisAddr() string {
+	if env := os.Getenv("REDIS_ADDR"); env != "" {
+		return env
+	}
+	if AppConfig.Redis.Addr != "" {
+		return AppConfig.Redis.Addr
+	}
+	return "localhost:6379"
+}
+
+func GetRedisPassword() string {
+	return AppConfig.Redis.Password
+}
+
+func GetRedisDB() int {
+	return AppConfig.Redis.DB
+}
+
+func GetDockerBinaryPath() string {
+	if AppConfig.Server.DockerBinaryPath != "" {
+		return AppConfig.Server.DockerBinaryPath
+	}
+	return "docker"
 }

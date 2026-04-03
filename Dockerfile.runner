@@ -1,0 +1,26 @@
+# Build stage
+FROM golang:1.25-alpine AS build
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o runner ./cmd/runner
+
+# Production stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates docker-cli && \
+    ln -s /usr/bin/docker /usr/local/bin/docker
+
+WORKDIR /app
+
+COPY --from=build /app/runner .
+COPY --from=build /app/config ./config
+COPY --from=build /app/docker ./docker
+
+EXPOSE 0
+
+CMD ["./runner"]

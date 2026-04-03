@@ -9,6 +9,8 @@ const (
 	CodeUpdateMessageType       MessageType = "code_update"
 	SelectionUpdateMessageType  MessageType = "selection_update"
 	VisibilityChangeMessageType MessageType = "visibility_change"
+	ExecuteRequestMessageType   MessageType = "execute_request"
+	ExecuteResultMessageType    MessageType = "execute_result"
 )
 
 type BroadcastMessage struct {

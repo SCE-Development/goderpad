@@ -1,14 +1,19 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"goderpad/config"
 	"goderpad/metrics"
 	"goderpad/models"
+	"goderpad/services"
 )
 
 var upgrader = websocket.Upgrader{
@@ -113,6 +118,44 @@ func readBroadcastsFromUser(user *models.User, room *models.Room) {
 			} else {
 				continue
 			}
+		}
+		if msg.Type == string(models.ExecuteRequestMessageType) {
+			if !config.GetEnableCodeExecution() {
+				user.Send <- models.BroadcastMessage{
+					UserID: user.UserID,
+					Type:   string(models.ExecuteResultMessageType),
+					Payload: map[string]any{
+						"userId": user.UserID,
+						"stdout": "",
+						"stderr": "code execution is disabled! to enable, set enable_code_execution: true in config/config.yml and restart the server.",
+						"code":   -1,
+					},
+				}
+				continue
+			}
+			language, _ := msg.Payload["language"].(string)
+			code, _ := msg.Payload["code"].(string)
+			jobID := fmt.Sprintf("%s:%s:%d", room.RoomID, user.UserID, time.Now().UnixNano())
+			job := models.ExecuteJob{
+				JobID:    jobID,
+				RoomID:   room.RoomID,
+				UserID:   user.UserID,
+				Language: language,
+				Code:     code,
+			}
+			if err := services.PublishJob(context.Background(), job); err != nil {
+				user.Send <- models.BroadcastMessage{
+					UserID: user.UserID,
+					Type:   string(models.ExecuteResultMessageType),
+					Payload: map[string]any{
+						"userId": user.UserID,
+						"stdout": "",
+						"stderr": "failed to queue execution: " + err.Error(),
+						"code":   -1,
+					},
+				}
+			}
+			continue
 		}
 		room.Broadcast <- msg
 	}

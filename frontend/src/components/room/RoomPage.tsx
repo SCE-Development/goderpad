@@ -1,16 +1,22 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useContext, useRef } from 'react';
 import { joinRoom, getRoomName } from '../../api/api';
 import EnterName from './EnterName';
-import CodeEditor from './CodeEditor';
+import CodeEditor, { type InterviewType } from './CodeEditor';
 import Popup from '../popup/Popup';
 import { DarkModeContext, UserContext } from '../../App';
-import { DEFAULT_CODE } from '../../util/templateContent';
+import { DEFAULT_CODE } from '../../util/reactTemplateContent';
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:7778';
 
-function RoomPage() {
+interface RoomPageProps {
+  interviewType?: InterviewType;
+}
+
+function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const interviewType: InterviewType = (location.state as { interviewType?: InterviewType })?.interviewType ?? propInterviewType ?? 'react';
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
   const [userName, setUserName] = useState('');
@@ -320,6 +326,8 @@ function RoomPage() {
         code={code}
         setCode={setCode}
         ws={ws}
+        roomId={roomId!}
+        interviewType={interviewType}
         users={users}
       />
       {/* Toast notifications */}

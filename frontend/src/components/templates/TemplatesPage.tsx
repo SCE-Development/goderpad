@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DarkModeContext, UserContext } from '../../App';
 import { createRoom } from '../../api/api';
-import { TEMPLATES, type Template } from '../../util/templateContent';
+import { TEMPLATES, type Template } from '../../util/reactTemplateContent';
 
 function TemplatesPage() {
   const { isDark } = useContext(DarkModeContext);
@@ -18,7 +18,7 @@ function TemplatesPage() {
 
   const handleSelectTemplate = async (template: Template) => {
     const finalRoomName = roomName || template.name;
-    const response = await createRoom(userId, userName, finalRoomName, template.code);
+    const response = await createRoom(userId, userName, finalRoomName, 'react', template.code);
     if (response.ok) {
       const roomId = response.data.roomId;
       const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);

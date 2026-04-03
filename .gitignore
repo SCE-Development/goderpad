@@ -34,4 +34,4 @@ config.yaml
 past/
 
 # Private interview template content
-frontend/src/util/templateContent.ts
+frontend/src/util/reactTemplateContent.ts

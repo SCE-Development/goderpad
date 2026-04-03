@@ -14,9 +14,9 @@ import (
 
 // CreateRoom creates a new room with the given details.
 // It does NOT add a user to the room, that is handled in the JoinRoom function.
-func CreateRoom(userID, name, roomName, initialCode string) (string, error) {
+func CreateRoom(userID, name, roomName, language, initialCode string) (string, error) {
 	roomID := utils.GenerateRoomCode()
-	room := models.NewRoom(roomID, roomName, initialCode)
+	room := models.NewRoom(roomID, roomName, language, initialCode)
 
 	hub := models.GetHub()
 	if err := hub.AddRoom(room); err != nil {
@@ -46,10 +46,21 @@ func JoinRoom(userID, name, roomID string) (map[string]any, error) {
 
 	response := map[string]any{
 		"roomName": room.RoomName,
-		"document": room.Document,
+		"document": room.GetDocument(),
+		"language": room.Language,
 		"users":    room.GetCurrentUsers(),
 	}
 	return response, nil
+}
+
+func SwitchLanguage(roomID, language string) (string, error) {
+	hub := models.GetHub()
+	room, exists := hub.GetRoom(roomID)
+	if !exists {
+		return "", models.ErrRoomNotFound
+	}
+	document := room.SwitchLanguage(language)
+	return document, nil
 }
 
 func GetRoomName(roomID string) (string, error) {
