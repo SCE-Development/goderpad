@@ -8,7 +8,7 @@ const DEFAULT_JAVA_CODE = "public class Main {\n    public static void main(Stri
 
 const DEFAULT_CPP_CODE = "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}"
 
-const DEFAULT_JAVASCRIPT_CODE = "function main() {\n  console.log(\"Hello, World!\");\n}\n main()"
+const DEFAULT_JAVASCRIPT_CODE = "function main() {\n  console.log(\"Hello, World!\");\n}\n\nmain()"
 
 // DEFAULT_CODE kept for backwards compatibility
 const DEFAULT_CODE = DEFAULT_REACT_CODE
