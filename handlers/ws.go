@@ -127,7 +127,7 @@ func readBroadcastsFromUser(user *models.User, room *models.Room) {
 					Payload: map[string]any{
 						"userId": user.UserID,
 						"stdout": "",
-						"stderr": "code execution is disabled! to enable, set enable_code_execution: true in config/config.yml and restart the server.",
+						"stderr": "sorry code execution is disabled :(",
 						"code":   -1,
 					},
 				}
