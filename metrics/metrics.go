@@ -31,21 +31,19 @@ var (
 	)
 
 	// RoomJoinErrorsTotal counts failed room join attempts.
-	RoomJoinErrorsTotal = prometheus.NewCounterVec(
+	RoomJoinErrorsTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "room_join_errors_total",
 			Help: "Total number of room join errors",
 		},
-		[]string{"reason"},
 	)
 
 	// RoomCreateErrorsTotal counts failed room creation attempts.
-	RoomCreateErrorsTotal = prometheus.NewCounterVec(
+	RoomCreateErrorsTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "room_create_errors_total",
 			Help: "Total number of room create errors",
 		},
-		[]string{"reason"},
 	)
 
 	// WebSocketUpgradeErrorsTotal counts failed WebSocket upgrades.
