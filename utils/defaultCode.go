@@ -13,6 +13,21 @@ const DEFAULT_JAVASCRIPT_CODE = "function main() {\n  console.log(\"Hello, World
 // DEFAULT_CODE kept for backwards compatibility
 const DEFAULT_CODE = DEFAULT_REACT_CODE
 
+func FileNameForLanguage(language string) string {
+	switch language {
+	case "python":
+		return "main.py"
+	case "java":
+		return "main.java"
+	case "cpp":
+		return "main.cpp"
+	case "javascript":
+		return "main.js"
+	default: // "react"
+		return "main.jsx"
+	}
+}
+
 func DefaultCodeForLanguage(language string) string {
 	switch language {
 	case "python":

@@ -153,10 +153,21 @@ func (r *Room) saveToFile() {
 		return
 	}
 
-	filePath := filepath.Join(dirPath, r.RoomName)
-	if err := os.WriteFile(filePath, []byte(r.Documents[r.Language]), 0644); err != nil {
+	// Save an empty file named after the room for identification
+	roomNamePath := filepath.Join(dirPath, r.RoomName)
+	if err := os.WriteFile(roomNamePath, []byte{}, 0644); err != nil {
 		metrics.DocumentSavesErrorsTotal.Inc()
 		return
+	}
+
+	// Save each language's document to its own file (main.py, main.js, etc.)
+	for lang, doc := range r.Documents {
+		fileName := utils.FileNameForLanguage(lang)
+		filePath := filepath.Join(dirPath, fileName)
+		if err := os.WriteFile(filePath, []byte(doc), 0644); err != nil {
+			metrics.DocumentSavesErrorsTotal.Inc()
+			return
+		}
 	}
 
 	r.dirty = false
