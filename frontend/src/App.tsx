@@ -3,6 +3,7 @@ import { createContext, useState } from 'react';
 import RoomPage from './components/room/RoomPage';
 import HomePage from './components/home/HomePage';
 import PastInterviewPage from './components/save/PastInterviews';
+import PastInterviewsListPage from './components/save/PastInterviewsListPage';
 import TemplatesPage from './components/templates/TemplatesPage';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -76,6 +77,7 @@ function App() {
             <Routes>
               <Route path='/' element={<HomePage />} />
               <Route path='/:roomId' element={<RoomPage />} />
+              <Route path='/past' element={<PastInterviewsListPage />} />
               <Route path='/past/:interviewId' element={<PastInterviewPage />} />
               <Route path='/templates' element={<TemplatesPage />} />
             </Routes>

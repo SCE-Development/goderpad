@@ -67,6 +67,16 @@ function PastInterviewPage() {
       />
       {files.length > 0 ? (
         <>
+          <button
+            onClick={() => navigate('/past')}
+            className={`mb-6 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+              isDark
+                ? 'bg-slate-800 text-gray-300 hover:bg-slate-700'
+                : 'bg-white text-gray-700 hover:bg-gray-200 border border-gray-300'
+            }`}
+          >
+            &larr; back to past interviews
+          </button>
           <h1 className='text-3xl font-bold text-center mb-6'>{roomName}</h1>
           {files.length > 1 && (
             <div className="flex gap-2 mb-4 justify-center flex-wrap">

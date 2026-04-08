@@ -47,6 +47,7 @@ func main() {
 	r.POST("/joinRoom", handlers.JoinRoomHandler)
 	r.POST("/switchLanguage", handlers.SwitchLanguageHandler)
 	r.GET("/getRoomName/:roomID", handlers.GetRoomNameHandler)
+	r.GET("/pastInterviews", handlers.ListPastInterviewsHandler)
 	r.GET("/past/:roomID", handlers.GetDocumentSaveHandler)
 	r.GET("/validateKey", handlers.ValidateKeyHandler)
 

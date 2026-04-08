@@ -126,6 +126,62 @@ func ValidateKeyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+func ListPastInterviewsHandler(c *gin.Context) {
+	apiKey := c.GetHeader("x-api-key")
+	if apiKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "API key is required"})
+		return
+	}
+	if apiKey != config.GetAPIKey() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid API key"})
+		return
+	}
+
+	dirPath := "past"
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": []any{}})
+		return
+	}
+
+	codeExtensions := map[string]bool{".py": true, ".js": true, ".jsx": true, ".java": true, ".cpp": true}
+
+	type interviewEntry struct {
+		RoomID   string   `json:"roomId"`
+		RoomName string   `json:"roomName"`
+		Files    []string `json:"files"`
+	}
+	var interviews []interviewEntry
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		roomID := entry.Name()
+		subDir := filepath.Join(dirPath, roomID)
+		files, err := os.ReadDir(subDir)
+		if err != nil {
+			continue
+		}
+
+		interview := interviewEntry{RoomID: roomID, RoomName: roomID}
+		for _, f := range files {
+			name := f.Name()
+			ext := filepath.Ext(name)
+			if codeExtensions[ext] {
+				interview.Files = append(interview.Files, name)
+			} else if !f.IsDir() {
+				interview.RoomName = name
+			}
+		}
+		if len(interview.Files) > 0 {
+			interviews = append(interviews, interview)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": interviews})
+}
+
 func GetDocumentSaveHandler(c *gin.Context) {
 	roomID := c.Param("roomID")
 	if roomID == "" {

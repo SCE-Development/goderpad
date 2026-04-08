@@ -106,6 +106,23 @@ export async function validateApiKey(apiKey: string) {
   }
 }
 
+export async function listPastInterviews(apiKey: string) {
+  try {
+    const response = await fetch(`${API_URL}/pastInterviews`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      }
+    });
+    return await response.json();
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Error fetching past interviews'
+    };
+  }
+}
+
 export async function getInterviewContent(interviewId: string, apiKey: string) {
   try {
     const response = await fetch(`${API_URL}/past/${interviewId}`, {

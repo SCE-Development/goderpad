@@ -82,23 +82,13 @@ func DeleteRoomSaves() {
 				continue
 			}
 			subDirPath := filepath.Join(baseDir, entry.Name())
-			files, err := os.ReadDir(subDirPath)
-			if err != nil || len(files) == 0 {
-				continue
-			}
-			if len(files) != 1 || files[0].IsDir() {
-				log.Printf("Unexpected file structure in %s, skipping deletion", subDirPath)
-				continue
-			}
-			filePath := filepath.Join(subDirPath, files[0].Name())
-			info, err := os.Stat(filePath)
+			info, err := entry.Info()
 			if err != nil {
 				continue
 			}
 			if time.Since(info.ModTime()) > 24*7*time.Hour {
-				os.Remove(filePath)
-				os.Remove(subDirPath)
-				log.Printf("Deleted old document save: %s", filePath)
+				os.RemoveAll(subDirPath)
+				log.Printf("Deleted old document save: %s", subDirPath)
 			}
 		}
 	}
