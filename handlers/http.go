@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 
@@ -143,26 +144,48 @@ func GetDocumentSaveHandler(c *gin.Context) {
 	}
 
 	dirPath := "past/" + roomID
-	files, err := os.ReadDir(dirPath)
+	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read directory"})
 		return
 	}
+
+	// Read room name from the non-code marker file, and collect code files
+	roomName := roomID
+	type fileEntry struct {
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	var files []fileEntry
+	codeExtensions := map[string]bool{".py": true, ".js": true, ".jsx": true, ".java": true, ".cpp": true}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(name)
+		if !codeExtensions[ext] {
+			// This is the room name marker file
+			roomName = name
+			continue
+		}
+		content, err := models.ReadDocumentFromFile(dirPath + "/" + name)
+		if err != nil {
+			continue
+		}
+		files = append(files, fileEntry{Name: name, Content: content})
+	}
+
 	if len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
 		return
 	}
-	fileName := files[0].Name()
-	data, err := models.ReadDocumentFromFile(dirPath + "/" + fileName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read document"})
-		return
-	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"ok": true,
 		"data": map[string]any{
-			"document": data,
-			"roomName": fileName,
+			"files":    files,
+			"roomName": roomName,
 		},
 	})
 }
