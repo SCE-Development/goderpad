@@ -6,4 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/interview/',
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: ['monaco-editor'],
+  },
 })
