@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { DarkModeContext } from '../../App';
 import Popup from '../popup/Popup';
-import { getInterviewContent } from '../../api/api';
+import { getInterviewContent, listPastInterviews } from '../../api/api';
 
 interface SavedFile {
   name: string;
@@ -12,14 +12,16 @@ interface SavedFile {
 function PastInterviewPage() {
   const { isDark } = useContext(DarkModeContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const { interviewId } = useParams<{ interviewId: string }>();
   const [showPopup, setShowPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [files, setFiles] = useState<SavedFile[]>([]);
+  const [files, setFiles] = useState<SavedFile[]>(location.state?.files || []);
   const [selectedFile, setSelectedFile] = useState<number>(0);
-  const [roomName, setRoomName] = useState<string>('');
+  const [roomName, setRoomName] = useState<string>(location.state?.roomName || '');
   const [apiKey, setApiKey] = useState<string>(() => sessionStorage.getItem('api_key') || '');
   const [keyInput, setKeyInput] = useState('');
+  const [goingBack, setGoingBack] = useState(false);
 
   const attemptFetch = async (key: string) => {
     try {
@@ -48,6 +50,8 @@ function PastInterviewPage() {
 
   useEffect(() => {
     if (!interviewId) { navigate('/'); return; }
+    // Skip fetch if we already have data from navigation state
+    if (files.length > 0) return;
     if (!apiKey) return;
     attemptFetch(apiKey);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -55,6 +59,26 @@ function PastInterviewPage() {
   const handleKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await attemptFetch(keyInput);
+  };
+
+  const handleBack = async () => {
+    // If we already have the interviews list from navigation state, pass it back
+    if (location.state?.interviews) {
+      navigate('/past', { state: { interviews: location.state.interviews } });
+      return;
+    }
+    // Otherwise fetch the list before navigating
+    setGoingBack(true);
+    try {
+      const response = await listPastInterviews(apiKey);
+      if (response.ok) {
+        navigate('/past', { state: { interviews: response.data || [] } });
+      } else {
+        navigate('/past');
+      }
+    } catch {
+      navigate('/past');
+    }
   };
 
   return (
@@ -68,8 +92,11 @@ function PastInterviewPage() {
       {files.length > 0 ? (
         <>
           <button
-            onClick={() => navigate('/past')}
+            onClick={handleBack}
+            disabled={goingBack}
             className={`mb-6 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+              goingBack ? 'opacity-60' : ''
+            } ${
               isDark
                 ? 'bg-slate-800 text-gray-300 hover:bg-slate-700'
                 : 'bg-white text-gray-700 hover:bg-gray-200 border border-gray-300'

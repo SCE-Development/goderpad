@@ -1,8 +1,8 @@
 import { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { DarkModeContext } from '../../App';
 import Popup from '../popup/Popup';
-import { listPastInterviews } from '../../api/api';
+import { listPastInterviews, getInterviewContent } from '../../api/api';
 
 interface PastInterview {
   roomId: string;
@@ -13,12 +13,14 @@ interface PastInterview {
 function PastInterviewsListPage() {
   const { isDark } = useContext(DarkModeContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPopup, setShowPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [interviews, setInterviews] = useState<PastInterview[]>([]);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [interviews, setInterviews] = useState<PastInterview[]>(location.state?.interviews || []);
+  const [authenticated, setAuthenticated] = useState(!!location.state?.interviews);
   const [apiKey, setApiKey] = useState<string>(() => sessionStorage.getItem('api_key') || '');
   const [keyInput, setKeyInput] = useState('');
+  const [loadingInterview, setLoadingInterview] = useState<string | null>(null);
 
   const attemptFetch = async (key: string) => {
     try {
@@ -43,7 +45,31 @@ function PastInterviewsListPage() {
     await attemptFetch(keyInput);
   };
 
-  // auto-fetch if we already have a key
+  const handleCardClick = async (roomId: string) => {
+    setLoadingInterview(roomId);
+    try {
+      const response = await getInterviewContent(roomId, apiKey);
+      if (!response.ok) {
+        setErrorMessage(response.error || 'an error occurred');
+        setShowPopup(true);
+        setLoadingInterview(null);
+        return;
+      }
+      navigate(`/past/${roomId}`, {
+        state: {
+          roomName: response.data.roomName,
+          files: response.data.files || [{ name: response.data.roomName, content: response.data.document }],
+          interviews,
+        },
+      });
+    } catch (err) {
+      setErrorMessage('an error occurred trying to fetch the interview content');
+      setShowPopup(true);
+      setLoadingInterview(null);
+    }
+  };
+
+  // auto-fetch if we already have a key and no pre-loaded data
   if (!authenticated && apiKey) {
     attemptFetch(apiKey);
   }
@@ -69,8 +95,11 @@ function PastInterviewsListPage() {
               {interviews.map((interview) => (
                 <button
                   key={interview.roomId}
-                  onClick={() => navigate(`/past/${interview.roomId}`)}
+                  onClick={() => handleCardClick(interview.roomId)}
+                  disabled={loadingInterview !== null}
                   className={`text-left p-6 rounded-xl border-2 transition-all cursor-pointer hover:scale-[1.02] ${
+                    loadingInterview === interview.roomId ? 'opacity-60' : ''
+                  } ${
                     isDark
                       ? 'bg-slate-800 border-slate-700 hover:border-green-500'
                       : 'bg-white border-gray-200 hover:border-green-500'
