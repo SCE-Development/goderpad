@@ -42,5 +42,5 @@ services:
 
 networks:
   default:
-    external:
-      name: sce
+    external: true
+    name: sce
