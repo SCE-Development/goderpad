@@ -124,7 +124,7 @@ function PastInterviewsListPage() {
             </div>
           )}
         </>
-      ) : (
+      ) : !apiKey ? (
         <form onSubmit={handleKeySubmit} className={`rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
           <h2 className="text-xl font-bold mb-4">Enter API Key</h2>
           <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>An API key is required to view past interviews.</p>
@@ -144,7 +144,7 @@ function PastInterviewsListPage() {
             Continue
           </button>
         </form>
-      )}
+      ) : null}
     </div>
   );
 }
