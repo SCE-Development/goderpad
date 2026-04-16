@@ -2,7 +2,7 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  bin = "./tmp/goderpad"
+  entrypoint = "./tmp/goderpad"
   cmd = "go build -o ./tmp/goderpad ./cmd/server"
   delay = 1000
   exclude_dir = ["tmp", "frontend", "docker", "past", "vendor"]

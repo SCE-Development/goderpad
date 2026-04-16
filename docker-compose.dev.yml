@@ -18,7 +18,7 @@ services:
       - REDIS_ADDR=goderpad-redis:6379
     volumes:
       - .:/app
-      - /app/tmp
+      - ./past:/app/past
 
   goderpad-runner:
     build:
@@ -53,7 +53,7 @@ services:
   goderpad-nginx:
     image: nginx:alpine
     volumes:
-      - ./nginx.dev.conf:/etc/nginx/nginx.conf
+      - ./frontend/nginx.dev.conf:/etc/nginx/nginx.conf
     depends_on:
       - goderpad-backend
       - goderpad-frontend
