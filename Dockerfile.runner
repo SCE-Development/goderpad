@@ -21,6 +21,4 @@ COPY --from=build /app/runner .
 COPY --from=build /app/config ./config
 COPY --from=build /app/docker ./docker
 
-EXPOSE 0
-
 CMD ["./runner"]

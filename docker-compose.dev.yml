@@ -10,14 +10,15 @@ services:
   goderpad-backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: Dockerfile.dev
     container_name: goderpad-backend
     ports:
       - "7778:7778"
     environment:
       - REDIS_ADDR=goderpad-redis:6379
     volumes:
-      - ./past:/app/past
+      - .:/app
+      - /app/tmp
 
   goderpad-runner:
     build:
