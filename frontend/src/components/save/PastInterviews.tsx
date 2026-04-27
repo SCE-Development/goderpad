@@ -129,7 +129,7 @@ function PastInterviewPage() {
               {files[0].name}
             </p>
           )}
-          <pre className={`whitespace-pre-wrap break-all p-6 rounded-lg shadow-md
+          <pre className={`whitespace-pre overflow-x-auto p-6 rounded-lg shadow-md
             ${isDark ? 'bg-slate-800 text-white' : 'bg-white text-gray-900'}`}>
             {files[selectedFile]?.content}
           </pre>

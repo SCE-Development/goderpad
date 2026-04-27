@@ -35,3 +35,6 @@ past/
 
 # Private interview template content
 frontend/src/util/reactTemplateContent.ts
+
+tmp/
+CLAUDE.md
