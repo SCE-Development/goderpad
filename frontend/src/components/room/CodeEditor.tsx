@@ -79,6 +79,8 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
   const [debouncedCode, setDebouncedCode] = useState(code);
   const [leftPercent, setLeftPercent] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const isDraggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -210,6 +212,14 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
   const handleDividerMouseDown = useCallback(() => {
     isDraggingRef.current = true;
     setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
   }, []);
 
   useEffect(() => {
@@ -438,7 +448,7 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
   const showPreview = interviewType === 'react';
 
   return (
-    <div ref={containerRef} className={`relative flex flex-row ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
+    <div ref={containerRef} className={`relative flex ${isMobile ? 'flex-col' : 'flex-row'} ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
       {/* Language dropdown — only shown for leetcode interviews */}
       {interviewType === 'leetcode' && <div className='absolute top-6 left-6 z-20'>
         <div className='relative'>
@@ -502,9 +512,9 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
         </div>
       </div>}
       {isDragging && <div className='fixed inset-0 z-50 cursor-col-resize' />}
-      <div style={{ width: `${leftPercent}%` }} className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden`}>
+      <div style={isMobile ? undefined : { width: `${leftPercent}%` }} className={`${isMobile ? 'w-full' : ''} border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden`}>
         <Editor
-          height='85vh'
+          height={isMobile ? 'calc(100vh - 128px)' : '85vh'}
           language={selectedLang.monacoLang}
           value={code}
           theme={isDark ? 'slate-dark' : 'vs'}
@@ -513,19 +523,51 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
           onChange={handleEditorChange}
           options={{
             minimap: { enabled: false },
-            fontSize: 14,
+            fontSize: isMobile ? 12 : 14,
             padding: { top: 10 },
             scrollBeyondLastLine: false,
           }}
         />
       </div>
+      {!isMobile && (
+        <div
+          onMouseDown={handleDividerMouseDown}
+          className={`w-3 flex-shrink-0 flex items-center justify-center cursor-col-resize group`}
+        >
+          <div className={`w-0.5 h-full rounded-full transition-colors ${isDark ? 'bg-slate-700 group-hover:bg-slate-400' : 'bg-gray-300 group-hover:bg-gray-500'}`} />
+        </div>
+      )}
       <div
-        onMouseDown={handleDividerMouseDown}
-        className={`w-3 flex-shrink-0 flex items-center justify-center cursor-col-resize group`}
+        style={isMobile ? undefined : { width: `${100 - leftPercent}%` }}
+        className={
+          isMobile
+            ? `fixed left-0 right-0 bottom-0 z-30 h-[70vh] flex flex-col border-t-2 rounded-t-2xl shadow-2xl transition-transform duration-300 ease-out ${isDark ? 'border-white bg-slate-900' : 'border-gray-900 bg-gray-100'} ${mobilePreviewOpen ? 'translate-y-0' : 'translate-y-[calc(100%-44px)]'}`
+            : `border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden h-[85vh] relative`
+        }
       >
-        <div className={`w-0.5 h-full rounded-full transition-colors ${isDark ? 'bg-slate-700 group-hover:bg-slate-400' : 'bg-gray-300 group-hover:bg-gray-500'}`} />
-      </div>
-      <div style={{ width: `${100 - leftPercent}%` }} className={`border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden h-[85vh] relative`}>
+        {isMobile && (
+          <button
+            onClick={() => setMobilePreviewOpen(prev => !prev)}
+            className={`relative flex items-center justify-center px-4 h-11 flex-shrink-0 rounded-t-2xl cursor-pointer ${isDark ? 'bg-slate-800 text-white border-b border-slate-700' : 'bg-white text-gray-900 border-b border-gray-200'}`}
+          >
+            <span className='text-sm font-medium'>{showPreview ? 'preview' : 'output'}</span>
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              width='16'
+              height='16'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              className={`absolute right-4 transition-transform ${mobilePreviewOpen ? 'rotate-180' : ''}`}
+            >
+              <polyline points='6 9 12 15 18 9' />
+            </svg>
+          </button>
+        )}
+        <div className={isMobile ? 'flex-1 min-h-0 relative overflow-hidden' : 'h-full relative'}>
         {showPreview ? (
           <>
             {hasError && (
@@ -611,6 +653,7 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEdi
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

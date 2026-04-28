@@ -103,9 +103,9 @@ function HomePage() {
     />
 
     <div className={`min-h-screen ${isDark ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
-      <h1 className='text-4xl font-bold text-center pt-20'>welcome to goderpad</h1>
-      <h3 className='text-xl text-center pt-4'>sce's interview platform</h3>
-      <div className='flex flex-row gap-30 justify-center mt-20'>
+      <h1 className='text-4xl font-bold text-center pt-10 sm:pt-20 px-8'>welcome to goderpad</h1>
+      <h3 className='text-xl text-center pt-4 px-8'>sce's interview platform</h3>
+      <div className='flex flex-row gap-30 justify-center mt-8 sm:mt-20 px-8 sm:px-6'>
         <div className='flex flex-col gap-6 w-full max-w-md mx-auto'>
           <h2 className='text-3xl font-semibold mb-2 text-center'>create an interview room</h2>
 
