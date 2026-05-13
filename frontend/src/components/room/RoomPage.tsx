@@ -16,7 +16,8 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const interviewType: InterviewType = (location.state as { interviewType?: InterviewType })?.interviewType ?? propInterviewType ?? 'react';
+  const fallbackInterviewType: InterviewType =
+    (location.state as { interviewType?: InterviewType })?.interviewType ?? propInterviewType ?? 'react';
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
   const [userName, setUserName] = useState('');
@@ -25,6 +26,8 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const [showPopup, setShowPopup] = useState(false);
   const [roomName, setRoomName] = useState('sce interview');
   const [code, setCode] = useState(DEFAULT_CODE);
+  const [language, setLanguage] = useState<string>(fallbackInterviewType === 'leetcode' ? 'python' : 'react');
+  const [interviewType, setInterviewType] = useState<InterviewType>(fallbackInterviewType);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [users, setUsers] = useState<Array<{
     userId: string;
@@ -54,6 +57,9 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
       setRoomName(response.data.roomName || 'sce interview');
       setCode(response.data.document || DEFAULT_CODE);
       setUsers(response.data.users || []);
+      const serverLanguage: string = response.data.language || (fallbackInterviewType === 'leetcode' ? 'python' : 'react');
+      setLanguage(serverLanguage);
+      setInterviewType(serverLanguage === 'react' ? 'react' : 'leetcode');
       const now = new Date().getTime();
       const expiry = now + (24 * 60 * 60 * 1000);
       const data = JSON.stringify({ userName, expiry });
@@ -111,6 +117,9 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
           setRoomName(response.data.roomName || 'sce interview');
           setCode(response.data.document || DEFAULT_CODE);
           setUsers(response.data.users || []);
+          const serverLanguage: string = response.data.language || (fallbackInterviewType === 'leetcode' ? 'python' : 'react');
+          setLanguage(serverLanguage);
+          setInterviewType(serverLanguage === 'react' ? 'react' : 'leetcode');
           setUserName(storedUserName);
           setIsJoined(true);
           
@@ -329,6 +338,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
         roomId={roomId!}
         interviewType={interviewType}
         users={users}
+        initialLanguage={language}
       />
       {/* Toast notifications */}
       <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
