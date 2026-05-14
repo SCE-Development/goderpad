@@ -52,7 +52,7 @@ interface CodeEditorProps {
     userName: string;
     cursorPosition: {
       lineNumber: number;
-      column: number 
+      column: number
     } | null;
     selection: {
       startLineNumber: number;
@@ -61,12 +61,17 @@ interface CodeEditorProps {
       endColumn: number;
     } | null;
   }>;
+  initialLanguage: string;
 }
 
-function CodeEditor({ code, setCode, ws, roomId, interviewType, users }: CodeEditorProps) {
+function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLanguage }: CodeEditorProps) {
   const { isDark } = useContext(DarkModeContext);
   const { userId } = useContext(UserContext);
-  const [language, setLanguage] = useState<Language>(interviewType === 'leetcode' ? 'python' : 'react');
+  const isKnownLanguage = (lang: string): lang is Language =>
+    LANGUAGE_OPTIONS.some(opt => opt.value === lang);
+  const [language, setLanguage] = useState<Language>(
+    isKnownLanguage(initialLanguage) ? initialLanguage : interviewType === 'leetcode' ? 'python' : 'react'
+  );
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [runOutput, setRunOutput] = useState<RunOutput | null>(null);
   const [isRunning, setIsRunning] = useState(false);
