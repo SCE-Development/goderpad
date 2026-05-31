@@ -11,6 +11,7 @@ const (
 	VisibilityChangeMessageType MessageType = "visibility_change"
 	ExecuteRequestMessageType   MessageType = "execute_request"
 	ExecuteResultMessageType    MessageType = "execute_result"
+	InterviewEndedMessageType   MessageType = "interview_ended"
 )
 
 type BroadcastMessage struct {

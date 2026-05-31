@@ -123,6 +123,24 @@ export async function listPastInterviews(apiKey: string) {
   }
 }
 
+export async function endInterview(roomId: string, apiKey: string) {
+  try {
+    const response = await fetch(`${API_URL}/endInterview/${roomId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      }
+    });
+    return await response.json();
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Error ending interview'
+    };
+  }
+}
+
 export async function getInterviewContent(interviewId: string, apiKey: string) {
   try {
     const response = await fetch(`${API_URL}/past/${interviewId}`, {

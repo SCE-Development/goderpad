@@ -113,6 +113,36 @@ func SwitchLanguageHandler(c *gin.Context) {
 	})
 }
 
+func EndInterviewHandler(c *gin.Context) {
+	apiKey := c.GetHeader("x-api-key")
+	if apiKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "API key is required"})
+		return
+	}
+	if apiKey != config.GetAPIKey() {
+		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "Invalid API key"})
+		return
+	}
+
+	roomID := c.Param("roomID")
+	if roomID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "Room ID is required"})
+		return
+	}
+
+	if err := services.EndInterview(roomID); err != nil {
+		if errors.Is(err, models.ErrRoomNotFound) {
+			// Already gone — treat as success so a duplicate click still
+			// lets the user navigate home.
+			c.JSON(http.StatusOK, gin.H{"ok": true})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 func ValidateKeyHandler(c *gin.Context) {
 	apiKey := c.GetHeader("x-api-key")
 	if apiKey == "" {

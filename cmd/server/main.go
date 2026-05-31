@@ -50,6 +50,7 @@ func main() {
 	r.GET("/pastInterviews", handlers.ListPastInterviewsHandler)
 	r.GET("/past/:roomID", handlers.GetDocumentSaveHandler)
 	r.GET("/validateKey", handlers.ValidateKeyHandler)
+	r.POST("/endInterview/:roomID", handlers.EndInterviewHandler)
 
 	r.GET("/ws/:roomID", handlers.WebSocketHandler)
 

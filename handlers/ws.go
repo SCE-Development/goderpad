@@ -119,6 +119,10 @@ func readBroadcastsFromUser(user *models.User, room *models.Room) {
 				continue
 			}
 		}
+		if msg.Type == string(models.InterviewEndedMessageType) {
+			// Clients shouldn't be able to forge end-of-interview events.
+			continue
+		}
 		if msg.Type == string(models.ExecuteRequestMessageType) {
 			if !config.GetEnableCodeExecution() {
 				user.Send <- models.BroadcastMessage{
@@ -157,7 +161,11 @@ func readBroadcastsFromUser(user *models.User, room *models.Room) {
 			}
 			continue
 		}
-		room.Broadcast <- msg
+		select {
+		case room.Broadcast <- msg:
+		case <-room.Done():
+			return
+		}
 	}
 }
 
@@ -167,13 +175,19 @@ func closeUserConnection(user *models.User, room *models.Room) {
 	// First remove user from room so they don't receive their own leave message
 	room.RemoveUser(userID)
 
-	// Broadcast user_left to remaining users
-	room.Broadcast <- models.BroadcastMessage{
-		UserID: userID,
-		Type:   "user_left",
-		Payload: map[string]any{
-			"roomId": room.RoomID,
-		},
+	// Broadcast user_left to remaining users. Skip if the room is ending
+	// or already torn down to avoid blocking forever or panicking on send.
+	if !room.IsEnded() {
+		select {
+		case room.Broadcast <- models.BroadcastMessage{
+			UserID: userID,
+			Type:   "user_left",
+			Payload: map[string]any{
+				"roomId": room.RoomID,
+			},
+		}:
+		case <-room.Done():
+		}
 	}
 
 	// Now clean up the user's resources

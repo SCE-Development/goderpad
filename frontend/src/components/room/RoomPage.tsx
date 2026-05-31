@@ -3,6 +3,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { joinRoom, getRoomName } from '../../api/api';
 import EnterName from './EnterName';
 import CodeEditor, { type InterviewType } from './CodeEditor';
+import EndInterviewModal from './EndInterviewModal';
 import Popup from '../popup/Popup';
 import { DarkModeContext, UserContext } from '../../App';
 import { DEFAULT_CODE } from '../../util/reactTemplateContent';
@@ -45,6 +46,10 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   }>>([]);
   const [toasts, setToasts] = useState<Array<{ id: number; message: string }>>([]);
   const toastIdRef = useRef(0);
+  const [showEndConfirmModal, setShowEndConfirmModal] = useState(false);
+  const [endedByMe, setEndedByMe] = useState(false);
+  const [endedByOther, setEndedByOther] = useState(false);
+  const endedByMeRef = useRef(false);
 
   const handleJoinRoom = async () => {
     if (!userName.trim() || !roomId) return;
@@ -222,6 +227,14 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
           setCode(message.payload.code);
           break;
 
+        case 'interview_ended':
+          // Suppress the "ended by other" popup for the user who actually
+          // ended it — they get their own success popup from the API call.
+          if (!endedByMeRef.current) {
+            setEndedByOther(true);
+          }
+          break;
+
         case 'visibility_change': {
           const user = users.find(u => u.userId === message.userId);
           const name = message.payload.userName || user?.userName || 'Someone';
@@ -326,6 +339,16 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
+      <button
+        onClick={() => setShowEndConfirmModal(true)}
+        className={`absolute top-6 right-24 z-50 px-4 py-2 rounded-lg font-semibold transition-colors ${
+          isDark
+            ? 'bg-red-700 text-white hover:bg-red-600'
+            : 'bg-red-600 text-white hover:bg-red-700'
+        }`}
+      >
+        End Interview
+      </button>
       <div className='relative'>
         <h1 className={`absolute top-6 left-0 right-0 text-center text-2xl font-bold z-10 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           {roomName}
@@ -353,6 +376,33 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
           </div>
         ))}
       </div>
+
+      <EndInterviewModal
+        roomId={roomId!}
+        isOpen={showEndConfirmModal && !endedByMe && !endedByOther}
+        onClose={() => setShowEndConfirmModal(false)}
+        onAttemptStart={() => { endedByMeRef.current = true; }}
+        onAttemptError={() => { endedByMeRef.current = false; }}
+        onEnded={() => {
+          endedByMeRef.current = true;
+          setEndedByMe(true);
+          setShowEndConfirmModal(false);
+        }}
+      />
+
+      <Popup
+        message='You have successfully ended the interview.'
+        buttonText='Return to home'
+        isOpen={endedByMe}
+        onClickButton={() => navigate('/')}
+      />
+
+      <Popup
+        message='The interview has ended.'
+        buttonText='Return to home'
+        isOpen={!endedByMe && endedByOther}
+        onClickButton={() => navigate('/')}
+      />
     </div>
   );
 }
