@@ -25,6 +25,8 @@ type Room struct {
 	dirty        bool        `json:"-"`
 	lastSave     time.Time   `json:"-"`
 	saveDebounce *time.Timer `json:"-"`
+
+	ended bool `json:"-"`
 }
 
 func NewRoom(roomID, roomName, language, initialCode string) *Room {
@@ -49,8 +51,45 @@ func NewRoom(roomID, roomName, language, initialCode string) *Room {
 }
 
 func (r *Room) Close() {
+	// Only close `done`; leave `Broadcast` open so any in-flight senders
+	// (which select on `done`) can bail out cleanly instead of panicking
+	// on a closed channel. The Broadcast channel will be garbage-collected
+	// once no goroutine references it.
 	close(r.done)
-	close(r.Broadcast)
+}
+
+// Done returns a channel closed when the room is shutting down.
+// Senders to r.Broadcast should select on this to avoid blocking
+// or panicking if the room is being torn down.
+func (r *Room) Done() <-chan struct{} {
+	return r.done
+}
+
+func (r *Room) IsEnded() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.ended
+}
+
+// FinalizeAndEnd marks the room ended and flushes the current documents
+// to disk. Returns true if this call performed the transition, false if
+// the room was already ended.
+func (r *Room) FinalizeAndEnd() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ended {
+		return false
+	}
+	r.ended = true
+	if r.saveDebounce != nil {
+		r.saveDebounce.Stop()
+		r.saveDebounce = nil
+	}
+	// Force a save even if no code edits arrived: we want the past
+	// entry to always exist when an interview is explicitly ended.
+	r.dirty = true
+	r.saveToFile()
+	return true
 }
 
 func (r *Room) GetDocument() string {

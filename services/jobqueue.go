@@ -113,7 +113,8 @@ func handleResultMessage(ctx context.Context, rdb *redis.Client, msg redis.XMess
 
 	// Send execute_result to ALL users in the room (including the one who triggered it).
 	// Using empty UserID so BroadcastToUsers won't skip anyone.
-	room.Broadcast <- models.BroadcastMessage{
+	select {
+	case room.Broadcast <- models.BroadcastMessage{
 		UserID: "",
 		Type:   string(models.ExecuteResultMessageType),
 		Payload: map[string]any{
@@ -122,6 +123,9 @@ func handleResultMessage(ctx context.Context, rdb *redis.Client, msg redis.XMess
 			"stderr": result.Stderr,
 			"code":   result.Code,
 		},
+	}:
+	case <-room.Done():
+		log.Printf("dropping execute_result for ended room %s", result.RoomID)
 	}
 
 	rdb.XAck(ctx, ResultsStream, ServerGroup, msg.ID)
