@@ -8,6 +8,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import { useState, useRef, useContext, useEffect, useCallback } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
+import InteractiveConsole, { type InteractiveConsoleHandle } from './InteractiveConsole';
 import { switchLanguage } from '../../api/api';
 
 self.MonacoEnvironment = {
@@ -84,10 +85,16 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
   const [debouncedCode, setDebouncedCode] = useState(code);
   const [leftPercent, setLeftPercent] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [previewPercent, setPreviewPercent] = useState(65);
+  const [isPreviewDragging, setIsPreviewDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [mobileRightTab, setMobileRightTab] = useState<'preview' | 'console'>('preview');
   const isDraggingRef = useRef(false);
+  const isPreviewDraggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rightPaneRef = useRef<HTMLDivElement>(null);
+  const consoleRef = useRef<InteractiveConsoleHandle | null>(null);
   const decorationsRef = useRef<string[]>([]);
   const selectionDecorationsRef = useRef<string[]>([]);
   const [visibleLabels, setVisibleLabels] = useState<Set<string>>(new Set());
@@ -219,6 +226,11 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
     setIsDragging(true);
   }, []);
 
+  const handlePreviewDividerMouseDown = useCallback(() => {
+    isPreviewDraggingRef.current = true;
+    setIsPreviewDragging(true);
+  }, []);
+
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 767px)');
     const update = () => setIsMobile(mql.matches);
@@ -238,6 +250,26 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
       setIsDragging(false);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPreviewDraggingRef.current || !rightPaneRef.current) return;
+      const rect = rightPaneRef.current.getBoundingClientRect();
+      const newPercent = ((e.clientY - rect.top) / rect.height) * 100;
+      setPreviewPercent(Math.min(Math.max(newPercent, 20), 80));
+    };
+    const handleMouseUp = () => {
+      if (!isPreviewDraggingRef.current) return;
+      isPreviewDraggingRef.current = false;
+      setIsPreviewDragging(false);
     };
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -517,6 +549,7 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
         </div>
       </div>}
       {isDragging && <div className='fixed inset-0 z-50 cursor-col-resize' />}
+      {isPreviewDragging && <div className='fixed inset-0 z-50 cursor-row-resize' />}
       <div style={isMobile ? undefined : { width: `${leftPercent}%` }} className={`${isMobile ? 'w-full' : ''} border-2 ${isDark ? 'border-white' : 'border-gray-900'} rounded-lg overflow-hidden`}>
         <Editor
           height={isMobile ? 'calc(100vh - 128px)' : '85vh'}
@@ -555,7 +588,7 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
             onClick={() => setMobilePreviewOpen(prev => !prev)}
             className={`relative flex items-center justify-center px-4 h-11 flex-shrink-0 rounded-t-2xl cursor-pointer ${isDark ? 'bg-slate-800 text-white border-b border-slate-700' : 'bg-white text-gray-900 border-b border-gray-200'}`}
           >
-            <span className='text-sm font-medium'>{showPreview ? 'preview' : 'output'}</span>
+            <span className='text-sm font-medium'>{showPreview ? mobileRightTab : 'output'}</span>
             <svg
               xmlns='http://www.w3.org/2000/svg'
               width='16'
@@ -601,11 +634,90 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
               }}
               style={{ height: '100%' }}
             >
-              <SandpackPreview
-                style={{ height: '100%' }}
-                showOpenInCodeSandbox={false}
-                showRefreshButton={true}
-              />
+              {isMobile ? (
+                <div className='flex flex-col h-full'>
+                  <div className={`flex border-b flex-shrink-0 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-white'}`}>
+                    <button
+                      onClick={() => setMobileRightTab('preview')}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                        mobileRightTab === 'preview'
+                          ? isDark ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-900'
+                          : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      preview
+                    </button>
+                    <button
+                      onClick={() => setMobileRightTab('console')}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                        mobileRightTab === 'console'
+                          ? isDark ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-900'
+                          : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      console
+                    </button>
+                  </div>
+                  <div className='flex-1 min-h-0 relative'>
+                    {/* Both panes stay mounted so the console keeps capturing logs while the preview tab is active. */}
+                    <div style={{ display: mobileRightTab === 'preview' ? 'block' : 'none', height: '100%' }}>
+                      <SandpackPreview
+                        style={{ height: '100%' }}
+                        showOpenInCodeSandbox={false}
+                        showRefreshButton={true}
+                      />
+                    </div>
+                    <div style={{ display: mobileRightTab === 'console' ? 'block' : 'none', height: '100%' }} className='flex flex-col'>
+                      <div className={`flex items-center justify-end px-3 py-1 border-b flex-shrink-0 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+                        <button
+                          onClick={() => consoleRef.current?.reset()}
+                          className={`text-xs px-2 py-0.5 rounded transition-colors ${isDark ? 'text-gray-400 hover:bg-slate-700 hover:text-white' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-900'}`}
+                        >
+                          clear
+                        </button>
+                      </div>
+                      <div className='flex-1 min-h-0'>
+                        <InteractiveConsole ref={consoleRef} isDark={isDark} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div ref={rightPaneRef} className='flex flex-col h-full'>
+                  <div style={{ height: `${previewPercent}%` }} className='flex-shrink-0 min-h-0 flex flex-col'>
+                    <div className={`flex items-center px-3 py-1.5 border-b flex-shrink-0 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+                      <span className={`text-xs uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>preview</span>
+                    </div>
+                    <div className='flex-1 min-h-0'>
+                      <SandpackPreview
+                        style={{ height: '100%' }}
+                        showOpenInCodeSandbox={false}
+                        showRefreshButton={true}
+                      />
+                    </div>
+                  </div>
+                  <div
+                    onMouseDown={handlePreviewDividerMouseDown}
+                    className='h-3 flex-shrink-0 flex items-center justify-center cursor-row-resize group'
+                  >
+                    <div className={`h-0.5 w-full rounded-full transition-colors ${isDark ? 'bg-slate-700 group-hover:bg-slate-400' : 'bg-gray-300 group-hover:bg-gray-500'}`} />
+                  </div>
+                  <div className='flex-1 min-h-0 flex flex-col'>
+                    <div className={`flex items-center justify-between px-3 py-1.5 border-b flex-shrink-0 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+                      <span className={`text-xs uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>console</span>
+                      <button
+                        onClick={() => consoleRef.current?.reset()}
+                        className={`text-xs px-2 py-0.5 rounded transition-colors ${isDark ? 'text-gray-400 hover:bg-slate-700 hover:text-white' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-900'}`}
+                      >
+                        clear
+                      </button>
+                    </div>
+                    <div className='flex-1 min-h-0'>
+                      <InteractiveConsole ref={consoleRef} isDark={isDark} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </SandpackProvider>
           </>
         ) : (
