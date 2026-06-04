@@ -3,8 +3,20 @@ package models
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+// WebSocket keepalive timings.
+//   - PingPeriod is small enough to keep NAT/proxy idle-timeouts (often 30-60s)
+//     from severing the connection while a tab is backgrounded.
+//   - PongWait is the deadline for receiving a pong reply; if it elapses the
+//     read loop errors and the connection is torn down.
+const (
+	WriteWait  = 10 * time.Second
+	PongWait   = 60 * time.Second
+	PingPeriod = 30 * time.Second
 )
 
 type User struct {
@@ -85,15 +97,25 @@ func (u *User) GetSelection() *SelectionRange {
 
 // this function reads incoming messages from the Send channel and sends to the user's websocket connection
 func (u *User) HandleBroadcasts() {
+	pingTicker := time.NewTicker(PingPeriod)
+	defer pingTicker.Stop()
 	for {
 		select {
 		case <-u.done:
 			return
 		case msg := <-u.Send:
 			if u.Conn != nil {
+				u.Conn.SetWriteDeadline(time.Now().Add(WriteWait))
 				err := u.Conn.WriteJSON(msg)
 				if err != nil {
 					log.Println("Error writing to websocket:", err)
+				}
+			}
+		case <-pingTicker.C:
+			if u.Conn != nil {
+				u.Conn.SetWriteDeadline(time.Now().Add(WriteWait))
+				if err := u.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					log.Println("Error sending ping:", err)
 				}
 			}
 		}

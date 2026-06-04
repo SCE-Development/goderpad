@@ -54,6 +54,16 @@ func WebSocketHandler(c *gin.Context) {
 
 	user.Conn = conn
 
+	// Keepalive: refresh the read deadline whenever a pong arrives. Combined
+	// with the server-side ping ticker in user.HandleBroadcasts, this keeps
+	// the connection alive through NAT/proxy idle-timeouts and lets us
+	// detect dead connections within PongWait.
+	conn.SetReadDeadline(time.Now().Add(models.PongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(models.PongWait))
+		return nil
+	})
+
 	// Send current cursor positions and selections of all other users to the newly connected user
 	for _, otherUser := range room.GetCurrentUsers() {
 		if otherUser.UserID != userID {
