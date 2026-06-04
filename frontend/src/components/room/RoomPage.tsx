@@ -50,6 +50,8 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const [endedByMe, setEndedByMe] = useState(false);
   const [endedByOther, setEndedByOther] = useState(false);
   const endedByMeRef = useRef(false);
+  const [connectionState, setConnectionState] = useState<'connected' | 'reconnecting' | 'failed'>('connected');
+  const shouldReconnectRef = useRef(true);
 
   const handleJoinRoom = async () => {
     if (!userName.trim() || !roomId) return;
@@ -142,130 +144,196 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
     joinWithStoredData();
   }, [roomId, userId, navigate]);
 
-  // Setup WebSocket connection and handlers when the user successfully joins the room
+  // Setup WebSocket connection and handlers when the user successfully joins the room.
+  // Automatically reconnects on close/error with exponential backoff. The server-side
+  // ping/pong (PingPeriod=30s, PongWait=60s) keeps healthy connections alive through
+  // NAT/proxy idle-timeouts; this client logic handles the rare case where a connection
+  // really does die (server restart, network drop, laptop sleep, etc.).
   useEffect(() => {
     if (!isJoined || !roomId) return;
-    const websocket = new WebSocket(`${WS_URL}/ws/${roomId}?userId=${userId}`);
-    setWs(websocket);
 
-    websocket.onopen = async () => {
-      websocket.send(JSON.stringify({
-        userId,
-        type: 'user_joined',
-        payload: {
-          userId,
-          roomId,
-          userName
-        }
-      }));
-    }
+    shouldReconnectRef.current = true;
+    setConnectionState('connected');
 
-    websocket.onclose = () => {
-    }
+    let attempt = 0;
+    let activeWs: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    websocket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-
-      switch (message.type) {
-        case 'user_joined':
-          setUsers(prevUsers => [
-            ...prevUsers,
-            {
-              userId: message.payload.userId,
-              userName: message.payload.userName,
-              cursorPosition: {
-                lineNumber: 1,
-                column: 1
-              },
-              selection: null
-            }
-          ]);
-          // Show toast for new user joining
-          const joinToastId = ++toastIdRef.current;
-          setToasts(prev => [...prev, { id: joinToastId, message: `${message.payload.userName} joined the room` }]);
-          setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== joinToastId));
-          }, 3000);
-          break;
-
-        case 'user_left':
-          setUsers(prevUsers => prevUsers.filter(u => u.userId !== message.userId));
-          break;
-
-        case 'cursor_update':
-          setUsers(prevUsers => 
-            prevUsers.map(u => 
-              u.userId === message.userId
-                ? { ...u, cursorPosition: { lineNumber: message.payload.lineNumber, column: message.payload.column } }
-                : u
-            )
-          );
-          break;
-
-        case 'selection_update':
-          setUsers(prevUsers => 
-            prevUsers.map(u => 
-              u.userId === message.userId
-                ? { 
-                    ...u, 
-                    selection: message.payload.startLineNumber === message.payload.endLineNumber && 
-                               message.payload.startColumn === message.payload.endColumn
-                      ? null 
-                      : {
-                          startLineNumber: message.payload.startLineNumber,
-                          startColumn: message.payload.startColumn,
-                          endLineNumber: message.payload.endLineNumber,
-                          endColumn: message.payload.endColumn
-                        }
-                  }
-                : u
-            )
-          );
-          break;
-
-        case 'code_update':
-          setCode(message.payload.code);
-          break;
-
-        case 'interview_ended':
-          // Suppress the "ended by other" popup for the user who actually
-          // ended it — they get their own success popup from the API call.
-          if (!endedByMeRef.current) {
-            setEndedByOther(true);
-          }
-          break;
-
-        case 'visibility_change': {
-          const user = users.find(u => u.userId === message.userId);
-          const name = message.payload.userName || user?.userName || 'Someone';
-          const isVisible = message.payload.isVisible;
-          const toastMessage = isVisible 
-            ? `${name} returned to goderpad` 
-            : `${name} exited goderpad`;
-          const newToastId = ++toastIdRef.current;
-          setToasts(prev => [...prev, { id: newToastId, message: toastMessage }]);
-          // Auto-remove toast after 3 seconds
-          setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== newToastId));
-          }, 3000);
-          break;
-        }
-
-        default:
-          break;
-      }
-    }
-
-    return () => {
-      // Send user_left before closing
-      if (websocket.readyState === WebSocket.OPEN) {
+    const attachHandlers = (websocket: WebSocket) => {
+      websocket.onopen = () => {
+        attempt = 0;
+        setConnectionState('connected');
         websocket.send(JSON.stringify({
           userId,
-          type: 'user_left',
-          payload: { roomId }
+          type: 'user_joined',
+          payload: { userId, roomId, userName },
         }));
+      };
+
+      websocket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+
+        switch (message.type) {
+          case 'user_joined':
+            // De-dup: on reconnect, other clients may still have us in their
+            // user list (their server-side cleanup may not have fired). Skip
+            // adding a duplicate and skip the join toast in that case.
+            setUsers(prevUsers => {
+              if (prevUsers.some(u => u.userId === message.payload.userId)) return prevUsers;
+              const joinToastId = ++toastIdRef.current;
+              setToasts(prev => [...prev, { id: joinToastId, message: `${message.payload.userName} joined the room` }]);
+              setTimeout(() => {
+                setToasts(prev => prev.filter(t => t.id !== joinToastId));
+              }, 3000);
+              return [
+                ...prevUsers,
+                {
+                  userId: message.payload.userId,
+                  userName: message.payload.userName,
+                  cursorPosition: { lineNumber: 1, column: 1 },
+                  selection: null,
+                },
+              ];
+            });
+            break;
+
+          case 'user_left':
+            setUsers(prevUsers => prevUsers.filter(u => u.userId !== message.userId));
+            break;
+
+          case 'cursor_update':
+            setUsers(prevUsers =>
+              prevUsers.map(u =>
+                u.userId === message.userId
+                  ? { ...u, cursorPosition: { lineNumber: message.payload.lineNumber, column: message.payload.column } }
+                  : u
+              )
+            );
+            break;
+
+          case 'selection_update':
+            setUsers(prevUsers =>
+              prevUsers.map(u =>
+                u.userId === message.userId
+                  ? {
+                      ...u,
+                      selection: message.payload.startLineNumber === message.payload.endLineNumber &&
+                                 message.payload.startColumn === message.payload.endColumn
+                        ? null
+                        : {
+                            startLineNumber: message.payload.startLineNumber,
+                            startColumn: message.payload.startColumn,
+                            endLineNumber: message.payload.endLineNumber,
+                            endColumn: message.payload.endColumn,
+                          },
+                    }
+                  : u
+              )
+            );
+            break;
+
+          case 'code_update':
+            setCode(message.payload.code);
+            break;
+
+          case 'interview_ended':
+            // Don't try to reconnect after an explicit end — the room is gone.
+            shouldReconnectRef.current = false;
+            if (!endedByMeRef.current) {
+              setEndedByOther(true);
+            }
+            break;
+
+          case 'visibility_change': {
+            const user = users.find(u => u.userId === message.userId);
+            const name = message.payload.userName || user?.userName || 'Someone';
+            const isVisible = message.payload.isVisible;
+            const toastMessage = isVisible
+              ? `${name} returned to goderpad`
+              : `${name} exited goderpad`;
+            const newToastId = ++toastIdRef.current;
+            setToasts(prev => [...prev, { id: newToastId, message: toastMessage }]);
+            setTimeout(() => {
+              setToasts(prev => prev.filter(t => t.id !== newToastId));
+            }, 3000);
+            break;
+          }
+
+          default:
+            break;
+        }
+      };
+
+      websocket.onclose = () => {
+        if (!shouldReconnectRef.current) return;
+        scheduleReconnect();
+      };
+
+      websocket.onerror = () => {
+        // onclose fires right after; let it handle reconnect scheduling.
+      };
+    };
+
+    const scheduleReconnect = () => {
+      if (!shouldReconnectRef.current) return;
+      if (attempt >= 10) {
+        setConnectionState('failed');
+        return;
       }
-      websocket.close();
+      setConnectionState('reconnecting');
+      const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
+      attempt += 1;
+      reconnectTimer = setTimeout(() => { connect(); }, delay);
+    };
+
+    const connect = async () => {
+      if (!shouldReconnectRef.current) return;
+
+      // On reconnect attempts (not the initial connect), re-join via HTTP to
+      // refresh the server's user record and pull the latest state. The
+      // server's JoinRoom tears down our stale User if it's still around
+      // (see services/room.go), so we don't leak goroutines.
+      if (attempt > 0) {
+        const response = await joinRoom(userId, userName, roomId);
+        if (!shouldReconnectRef.current) return;
+        if (!response.ok) {
+          // Room may be gone (expired or ended) or server is down; back off.
+          scheduleReconnect();
+          return;
+        }
+        // Trust the server's view. Any local edits made during the disconnect
+        // window are lost — same behavior as a manual refresh today.
+        setCode(response.data.document || DEFAULT_CODE);
+        setUsers(response.data.users || []);
+        const serverLanguage: string = response.data.language || (interviewType === 'leetcode' ? 'python' : 'react');
+        setLanguage(serverLanguage);
+      }
+
+      const websocket = new WebSocket(`${WS_URL}/ws/${roomId}?userId=${userId}`);
+      activeWs = websocket;
+      setWs(websocket);
+      attachHandlers(websocket);
+    };
+
+    connect();
+
+    return () => {
+      shouldReconnectRef.current = false;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (activeWs) {
+        if (activeWs.readyState === WebSocket.OPEN) {
+          activeWs.send(JSON.stringify({
+            userId,
+            type: 'user_left',
+            payload: { roomId },
+          }));
+        }
+        activeWs.close();
+        activeWs = null;
+      }
       setWs(null);
     };
   }, [isJoined, roomId]);
@@ -377,14 +445,41 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
         ))}
       </div>
 
+      {connectionState !== 'connected' && (
+        <div className='fixed bottom-4 left-4 z-50'>
+          <div className={`px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 ${
+            connectionState === 'failed'
+              ? 'bg-red-600 text-white'
+              : isDark ? 'bg-yellow-600 text-white' : 'bg-yellow-500 text-white'
+          }`}>
+            {connectionState === 'reconnecting' && (
+              <svg className='animate-spin' xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 24 24'>
+                <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4' />
+                <path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8v8z' />
+              </svg>
+            )}
+            <span className='text-sm font-medium'>
+              {connectionState === 'reconnecting' ? 'reconnecting…' : 'connection failed — please refresh'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <EndInterviewModal
         roomId={roomId!}
         isOpen={showEndConfirmModal && !endedByMe && !endedByOther}
         onClose={() => setShowEndConfirmModal(false)}
-        onAttemptStart={() => { endedByMeRef.current = true; }}
-        onAttemptError={() => { endedByMeRef.current = false; }}
+        onAttemptStart={() => {
+          endedByMeRef.current = true;
+          shouldReconnectRef.current = false;
+        }}
+        onAttemptError={() => {
+          endedByMeRef.current = false;
+          shouldReconnectRef.current = true;
+        }}
         onEnded={() => {
           endedByMeRef.current = true;
+          shouldReconnectRef.current = false;
           setEndedByMe(true);
           setShowEndConfirmModal(false);
         }}

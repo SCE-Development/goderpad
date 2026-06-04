@@ -34,6 +34,18 @@ func JoinRoom(userID, name, roomID string) (map[string]any, error) {
 		return nil, models.ErrRoomNotFound
 	}
 
+	// Reconnect path: if the user is already in the room (their old conn
+	// hasn't been cleaned up yet — e.g., the client noticed the drop
+	// before the server's pong-timeout fired), tear down the stale User
+	// so we don't leak its HandleBroadcasts goroutine or hold a dead Conn.
+	if existing, ok := room.CheckUserExists(userID); ok {
+		if existing.Conn != nil {
+			existing.Conn.Close()
+		}
+		room.RemoveUser(userID)
+		existing.Close()
+	}
+
 	user := models.CreateUser(userID, name)
 	room.AddUser(user)
 
