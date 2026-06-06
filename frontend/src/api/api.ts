@@ -1,9 +1,46 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7778';
 
+export interface MeResponse {
+  isGuest: boolean;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  accessLevel?: number;
+}
+
+export async function fetchMe(): Promise<MeResponse> {
+  try {
+    const response = await fetch(`${API_URL}/me`, {
+      credentials: 'include',
+    });
+    if (!response.ok) return { isGuest: true };
+    return await response.json();
+  } catch {
+    return { isGuest: true };
+  }
+}
+
+export async function devLogin(name: string, accessLevel: number) {
+  try {
+    const response = await fetch(`${API_URL}/dev/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, accessLevel }),
+    });
+    return await response.json();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error signing in' };
+  }
+}
+
 export async function executeCode(language: string, code: string) {
   try {
     const response = await fetch(`${API_URL}/execute`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language, code }),
     });
@@ -17,6 +54,7 @@ export async function createRoom(userId: string, name: string, roomName: string,
   try {
     const response = await fetch(`${API_URL}/createRoom`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -41,6 +79,7 @@ export async function joinRoom(userId: string, name: string, roomId: string) {
   try {
     const response = await fetch(`${API_URL}/joinRoom`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -63,6 +102,7 @@ export async function switchLanguage(roomId: string, language: string) {
   try {
     const response = await fetch(`${API_URL}/switchLanguage`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -79,7 +119,9 @@ export async function switchLanguage(roomId: string, language: string) {
 
 export async function getRoomName(roomId: string) {
   try {
-    const response = await fetch(`${API_URL}/getRoomName/${roomId}`);
+    const response = await fetch(`${API_URL}/getRoomName/${roomId}`, {
+      credentials: 'include',
+    });
     return await response.json();
   } catch (err) {
     return {
@@ -89,30 +131,11 @@ export async function getRoomName(roomId: string) {
   }
 }
 
-export async function validateApiKey(apiKey: string) {
-  try {
-    const response = await fetch(`${API_URL}/validateKey`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      }
-    });
-    return await response.json();
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : 'Error validating key'
-    };
-  }
-}
-
-export async function listPastInterviews(apiKey: string) {
+export async function listPastInterviews() {
   try {
     const response = await fetch(`${API_URL}/pastInterviews`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      }
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
     });
     return await response.json();
   } catch (err) {
@@ -123,14 +146,13 @@ export async function listPastInterviews(apiKey: string) {
   }
 }
 
-export async function endInterview(roomId: string, apiKey: string) {
+export async function endInterview(roomId: string, userId: string) {
   try {
     const response = await fetch(`${API_URL}/endInterview/${roomId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      }
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
     });
     return await response.json();
   } catch (err) {
@@ -141,13 +163,11 @@ export async function endInterview(roomId: string, apiKey: string) {
   }
 }
 
-export async function getInterviewContent(interviewId: string, apiKey: string) {
+export async function getInterviewContent(interviewId: string) {
   try {
     const response = await fetch(`${API_URL}/past/${interviewId}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      }
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
     });
     return await response.json();
   } catch (err) {

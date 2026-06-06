@@ -13,9 +13,10 @@ import (
 
 // CreateRoom creates a new room with the given details.
 // It does NOT add a user to the room, that is handled in the JoinRoom function.
-func CreateRoom(userID, name, roomName, language, initialCode string) (string, error) {
+// creatorUserID is recorded on the room so EndInterview can gate on creator-only.
+func CreateRoom(creatorUserID, roomName, language, initialCode string) (string, error) {
 	roomID := utils.GenerateRoomCode()
-	room := models.NewRoom(roomID, roomName, language, initialCode)
+	room := models.NewRoom(roomID, roomName, language, initialCode, creatorUserID)
 
 	hub := models.GetHub()
 	if err := hub.AddRoom(room); err != nil {
@@ -26,7 +27,7 @@ func CreateRoom(userID, name, roomName, language, initialCode string) (string, e
 	return roomID, nil
 }
 
-func JoinRoom(userID, name, roomID string) (map[string]any, error) {
+func JoinRoom(userID, name, roomID string, isClarkAuthed bool) (map[string]any, error) {
 	hub := models.GetHub()
 	room, exists := hub.GetRoom(roomID)
 	if !exists {
@@ -46,14 +47,15 @@ func JoinRoom(userID, name, roomID string) (map[string]any, error) {
 		existing.Close()
 	}
 
-	user := models.CreateUser(userID, name)
+	user := models.CreateUser(userID, name, isClarkAuthed)
 	room.AddUser(user)
 
 	response := map[string]any{
-		"roomName": room.RoomName,
-		"document": room.GetDocument(),
-		"language": room.Language,
-		"users":    room.GetCurrentUsers(),
+		"roomName":      room.RoomName,
+		"creatorUserId": room.CreatorUserID,
+		"document":      room.GetDocument(),
+		"language":      room.Language,
+		"users":         room.GetCurrentUsers(),
 	}
 	return response, nil
 }

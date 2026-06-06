@@ -11,15 +11,16 @@ import (
 )
 
 type Room struct {
-	RoomID    string                `json:"roomId"`
-	RoomName  string                `json:"roomName"`
-	CreatedAt time.Time             `json:"-"`
-	Language  string                `json:"language"`
-	Documents map[string]string     `json:"documents"`
-	Users     map[string]*User      `json:"users"`
-	Broadcast chan BroadcastMessage `json:"-"`
-	done      chan struct{}         `json:"-"`
-	mu        sync.Mutex            `json:"-"`
+	RoomID        string                `json:"roomId"`
+	RoomName      string                `json:"roomName"`
+	CreatorUserID string                `json:"creatorUserId"`
+	CreatedAt     time.Time             `json:"-"`
+	Language      string                `json:"language"`
+	Documents     map[string]string     `json:"documents"`
+	Users         map[string]*User      `json:"users"`
+	Broadcast     chan BroadcastMessage `json:"-"`
+	done          chan struct{}         `json:"-"`
+	mu            sync.Mutex            `json:"-"`
 
 	// File management
 	dirty        bool        `json:"-"`
@@ -29,7 +30,7 @@ type Room struct {
 	ended bool `json:"-"`
 }
 
-func NewRoom(roomID, roomName, language, initialCode string) *Room {
+func NewRoom(roomID, roomName, language, initialCode, creatorUserID string) *Room {
 	document := utils.DefaultCodeForLanguage(language)
 	if initialCode != "" {
 		document = initialCode
@@ -37,14 +38,15 @@ func NewRoom(roomID, roomName, language, initialCode string) *Room {
 	documents := make(map[string]string)
 	documents[language] = document
 	room := &Room{
-		RoomID:    roomID,
-		RoomName:  roomName,
-		CreatedAt: time.Now(),
-		Language:  language,
-		Documents: documents,
-		Users:     make(map[string]*User),
-		done:      make(chan struct{}),
-		Broadcast: make(chan BroadcastMessage),
+		RoomID:        roomID,
+		RoomName:      roomName,
+		CreatorUserID: creatorUserID,
+		CreatedAt:     time.Now(),
+		Language:      language,
+		Documents:     documents,
+		Users:         make(map[string]*User),
+		done:          make(chan struct{}),
+		Broadcast:     make(chan BroadcastMessage),
 	}
 	go room.BroadcastToUsers()
 	return room

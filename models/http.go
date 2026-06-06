@@ -18,3 +18,7 @@ type SwitchLanguageRequest struct {
 	RoomID   string `json:"roomId"`
 	Language string `json:"language"`
 }
+
+type EndInterviewRequest struct {
+	UserID string `json:"userId"`
+}

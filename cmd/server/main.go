@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"goderpad/auth"
 	"goderpad/config"
 	"goderpad/execution"
 	"goderpad/handlers"
@@ -30,11 +31,12 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     config.GetAllowedOrigins(),
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "x-api-key"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		AllowCredentials: true,
 	}))
 
 	r.Use(prometheusMiddleware)
+	r.Use(auth.RequireIdentity())
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -42,14 +44,18 @@ func main() {
 		})
 	})
 
+	r.GET("/me", auth.MeHandler)
+	if config.GetDevAuth() {
+		r.POST("/dev/login", auth.DevLoginHandler)
+	}
+
 	r.POST("/execute", handlers.ExecuteHandler)
 	r.POST("/createRoom", handlers.CreateRoomHandler)
 	r.POST("/joinRoom", handlers.JoinRoomHandler)
 	r.POST("/switchLanguage", handlers.SwitchLanguageHandler)
 	r.GET("/getRoomName/:roomID", handlers.GetRoomNameHandler)
-	r.GET("/pastInterviews", handlers.ListPastInterviewsHandler)
-	r.GET("/past/:roomID", handlers.GetDocumentSaveHandler)
-	r.GET("/validateKey", handlers.ValidateKeyHandler)
+	r.GET("/pastInterviews", auth.RequireMinAccessLevel(2), handlers.ListPastInterviewsHandler)
+	r.GET("/past/:roomID", auth.RequireMinAccessLevel(2), handlers.GetDocumentSaveHandler)
 	r.POST("/endInterview/:roomID", handlers.EndInterviewHandler)
 
 	r.GET("/ws/:roomID", handlers.WebSocketHandler)

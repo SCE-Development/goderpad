@@ -6,7 +6,7 @@ import { TEMPLATES, type Template } from '../../util/reactTemplateContent';
 
 function TemplatesPage() {
   const { isDark } = useContext(DarkModeContext);
-  const { userId } = useContext(UserContext);
+  const { user } = useContext(UserContext);
   const navigate = useNavigate();
   const location = useLocation();
   const { userName, roomName } = (location.state as { userName: string; roomName: string }) || {};
@@ -18,7 +18,7 @@ function TemplatesPage() {
 
   const handleSelectTemplate = async (template: Template) => {
     const finalRoomName = roomName || template.name;
-    const response = await createRoom(userId, userName, finalRoomName, 'react', template.code);
+    const response = await createRoom(user.userId, userName, finalRoomName, 'react', template.code);
     if (response.ok) {
       const roomId = response.data.roomId;
       const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);

@@ -20,8 +20,10 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const fallbackInterviewType: InterviewType =
     (location.state as { interviewType?: InterviewType })?.interviewType ?? propInterviewType ?? 'react';
   const { isDark } = useContext(DarkModeContext);
-  const { userId } = useContext(UserContext);
-  const [userName, setUserName] = useState('');
+  const { user } = useContext(UserContext);
+  const userId = user.userId;
+  const [userName, setUserName] = useState(user.isGuest ? '' : user.name);
+  const [creatorUserId, setCreatorUserId] = useState<string>('');
   const [isJoined, setIsJoined] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -62,6 +64,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
 
     if (response.ok) {
       setRoomName(response.data.roomName || 'sce interview');
+      setCreatorUserId(response.data.creatorUserId || '');
       setCode(response.data.document || DEFAULT_CODE);
       setUsers(response.data.users || []);
       const serverLanguage: string = response.data.language || (fallbackInterviewType === 'leetcode' ? 'python' : 'react');
@@ -76,6 +79,8 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
       setShowPopup(true);
     }
   };
+
+  const isRoomCreator = creatorUserId !== '' && creatorUserId === userId;
 
   useEffect(() => {
     if (!roomId) {
@@ -122,6 +127,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
         
         if (response.ok) {
           setRoomName(response.data.roomName || 'sce interview');
+          setCreatorUserId(response.data.creatorUserId || '');
           setCode(response.data.document || DEFAULT_CODE);
           setUsers(response.data.users || []);
           const serverLanguage: string = response.data.language || (fallbackInterviewType === 'leetcode' ? 'python' : 'react');
@@ -129,7 +135,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
           setInterviewType(serverLanguage === 'react' ? 'react' : 'leetcode');
           setUserName(storedUserName);
           setIsJoined(true);
-          
+
           // Update expiry
           const updatedExpiry = now + (24 * 60 * 60 * 1000);
           localStorage.setItem(`goderpad-cookie-${roomId}`, JSON.stringify({ userName: storedUserName, expiry: updatedExpiry }));
@@ -407,16 +413,18 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
-      <button
-        onClick={() => setShowEndConfirmModal(true)}
-        className={`absolute top-6 right-24 z-50 px-4 py-2 rounded-lg font-semibold transition-colors ${
-          isDark
-            ? 'bg-red-700 text-white hover:bg-red-600'
-            : 'bg-red-600 text-white hover:bg-red-700'
-        }`}
-      >
-        End Interview
-      </button>
+      {isRoomCreator && (
+        <button
+          onClick={() => setShowEndConfirmModal(true)}
+          className={`absolute top-6 right-24 z-50 px-4 py-2 rounded-lg font-semibold transition-colors ${
+            isDark
+              ? 'bg-red-700 text-white hover:bg-red-600'
+              : 'bg-red-600 text-white hover:bg-red-700'
+          }`}
+        >
+          End Interview
+        </button>
+      )}
       <div className='relative'>
         <h1 className={`absolute top-6 left-0 right-0 text-center text-2xl font-bold z-10 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           {roomName}
@@ -467,6 +475,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
 
       <EndInterviewModal
         roomId={roomId!}
+        userId={userId}
         isOpen={showEndConfirmModal && !endedByMe && !endedByOther}
         onClose={() => setShowEndConfirmModal(false)}
         onAttemptStart={() => {

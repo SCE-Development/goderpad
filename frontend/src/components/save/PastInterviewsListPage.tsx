@@ -1,8 +1,15 @@
-import { useState, useContext } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { DarkModeContext } from '../../App';
+import { DarkModeContext, UserContext } from '../../App';
 import Popup from '../popup/Popup';
 import { listPastInterviews, getInterviewContent } from '../../api/api';
+
+const CLARK_LOGIN_URL = import.meta.env.VITE_CLARK_LOGIN_URL || 'https://sce.sjsu.edu/login';
+
+function signInWithSCE() {
+  const redirect = encodeURIComponent(window.location.href);
+  window.location.href = `${CLARK_LOGIN_URL}?redirect=${redirect}`;
+}
 
 interface PastInterview {
   roomId: string;
@@ -12,43 +19,38 @@ interface PastInterview {
 
 function PastInterviewsListPage() {
   const { isDark } = useContext(DarkModeContext);
+  const { user } = useContext(UserContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [showPopup, setShowPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [interviews, setInterviews] = useState<PastInterview[]>(location.state?.interviews || []);
-  const [authenticated, setAuthenticated] = useState(!!location.state?.interviews);
-  const [apiKey, setApiKey] = useState<string>(() => sessionStorage.getItem('api_key') || '');
-  const [keyInput, setKeyInput] = useState('');
   const [loadingInterview, setLoadingInterview] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState(!!location.state?.interviews);
 
-  const attemptFetch = async (key: string) => {
-    try {
-      const response = await listPastInterviews(key);
+  const isOfficer = !user.isGuest && user.accessLevel >= 2;
+
+  useEffect(() => {
+    if (!isOfficer || hasFetched) return;
+    let cancelled = false;
+    (async () => {
+      const response = await listPastInterviews();
+      if (cancelled) return;
+      setHasFetched(true);
       if (!response.ok) {
         setErrorMessage(response.error || 'an error occurred');
         setShowPopup(true);
         return;
       }
-      sessionStorage.setItem('api_key', key);
-      setApiKey(key);
-      setAuthenticated(true);
       setInterviews(response.data || []);
-    } catch (err) {
-      setErrorMessage('an error occurred trying to fetch past interviews');
-      setShowPopup(true);
-    }
-  };
-
-  const handleKeySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await attemptFetch(keyInput);
-  };
+    })();
+    return () => { cancelled = true; };
+  }, [isOfficer, hasFetched]);
 
   const handleCardClick = async (roomId: string) => {
     setLoadingInterview(roomId);
     try {
-      const response = await getInterviewContent(roomId, apiKey);
+      const response = await getInterviewContent(roomId);
       if (!response.ok) {
         setErrorMessage(response.error || 'an error occurred');
         setShowPopup(true);
@@ -62,27 +64,22 @@ function PastInterviewsListPage() {
           interviews,
         },
       });
-    } catch (err) {
+    } catch {
       setErrorMessage('an error occurred trying to fetch the interview content');
       setShowPopup(true);
       setLoadingInterview(null);
     }
   };
 
-  // auto-fetch if we already have a key and no pre-loaded data
-  if (!authenticated && apiKey) {
-    attemptFetch(apiKey);
-  }
-
   return (
-    <div className={`min-h-screen ${authenticated ? 'p-8' : 'flex items-center justify-center'} ${isDark ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
+    <div className={`min-h-screen ${isOfficer ? 'p-8' : 'flex items-center justify-center'} ${isDark ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
       <Popup
         message={errorMessage}
         buttonText="ok"
         isOpen={showPopup}
-        onClickButton={() => { setShowPopup(false); setKeyInput(''); }}
+        onClickButton={() => setShowPopup(false)}
       />
-      {authenticated ? (
+      {isOfficer ? (
         <>
           <h1 className='text-3xl font-bold text-center mb-2'>past interviews</h1>
           <p className={`text-center mb-10 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -124,27 +121,20 @@ function PastInterviewsListPage() {
             </div>
           )}
         </>
-      ) : !apiKey ? (
-        <form onSubmit={handleKeySubmit} className={`rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
-          <h2 className="text-xl font-bold mb-4">Enter API Key</h2>
-          <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>An API key is required to view past interviews.</p>
-          <input
-            type="password"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            placeholder="API key"
-            className={`w-full px-4 py-2 rounded-lg border mb-4 outline-none ${isDark ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
-            autoFocus
-          />
+      ) : (
+        <div className={`rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
+          <h2 className='text-xl font-bold mb-4'>officers only</h2>
+          <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            past interviews are visible to SCE officers. sign in to continue.
+          </p>
           <button
-            type="submit"
-            disabled={!keyInput}
-            className="w-full px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50"
+            onClick={signInWithSCE}
+            className='w-full px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold'
           >
-            Continue
+            sign in with SCE
           </button>
-        </form>
-      ) : null}
+        </div>
+      )}
     </div>
   );
 }

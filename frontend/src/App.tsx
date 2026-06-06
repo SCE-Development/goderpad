@@ -1,34 +1,73 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { createContext, useState } from 'react';
+import { createContext, useCallback, useEffect, useState } from 'react';
 import RoomPage from './components/room/RoomPage';
 import HomePage from './components/home/HomePage';
 import PastInterviewPage from './components/save/PastInterviews';
 import PastInterviewsListPage from './components/save/PastInterviewsListPage';
 import TemplatesPage from './components/templates/TemplatesPage';
 import { v4 as uuidv4 } from 'uuid';
+import { fetchMe } from './api/api';
 
 export const DarkModeContext = createContext<{
   isDark: boolean;
   setIsDark: (isDark: boolean) => void;
 }>({ isDark: true, setIsDark: () => {} });
 
-export const UserContext = createContext<{
+export interface AuthUser {
   userId: string;
-}>({ userId: '' });
+  name: string;
+  email: string;
+  accessLevel: number;
+  isGuest: boolean;
+}
+
+export const UserContext = createContext<{
+  user: AuthUser;
+  refresh: () => Promise<void>;
+}>({
+  user: { userId: '', name: '', email: '', accessLevel: 0, isGuest: true },
+  refresh: async () => {},
+});
 
 function App() {
   const [isDark, setIsDark] = useState(true);
-  const [userId] = useState(() => {
+  const [guestUserId] = useState(() => {
     let id = localStorage.getItem('goderpad-userId');
     if (!id) {
       id = uuidv4();
       localStorage.setItem('goderpad-userId', id);
     }
     return id;
-  })
+  });
+  const [user, setUser] = useState<AuthUser>({
+    userId: guestUserId,
+    name: '',
+    email: '',
+    accessLevel: 0,
+    isGuest: true,
+  });
+
+  const refresh = useCallback(async () => {
+    const me = await fetchMe();
+    if (me.isGuest || !me.userId) {
+      setUser({ userId: guestUserId, name: '', email: '', accessLevel: 0, isGuest: true });
+      return;
+    }
+    setUser({
+      userId: me.userId,
+      name: me.name ?? '',
+      email: me.email ?? '',
+      accessLevel: me.accessLevel ?? 0,
+      isGuest: false,
+    });
+  }, [guestUserId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   return (
-    <UserContext.Provider value={{ userId }}>
+    <UserContext.Provider value={{ user, refresh }}>
       <DarkModeContext.Provider value={{ isDark, setIsDark }}>
         <BrowserRouter basename="/interview">
           <div className='relative'>

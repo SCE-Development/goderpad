@@ -8,10 +8,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"goderpad/config"
+	"goderpad/auth"
 	"goderpad/models"
 	"goderpad/services"
 )
+
+// resolveIdentity picks the trusted userID and display name for a request.
+// Clark identity wins when present so a guest can't impersonate an SCE
+// member by stuffing fields into the DTO; for guests we fall through to
+// the client-supplied values (same trust model as before this auth work).
+func resolveIdentity(c *gin.Context, dtoUserID, dtoName string) (userID, name string, isClarkAuthed bool) {
+	id := auth.IdentityFromContext(c)
+	if id.Clark != nil {
+		return id.Clark.UserID, id.Clark.Name(), true
+	}
+	return dtoUserID, dtoName, false
+}
 
 func CreateRoomHandler(c *gin.Context) {
 	var req models.CreateRoomRequest
@@ -20,7 +32,13 @@ func CreateRoomHandler(c *gin.Context) {
 		return
 	}
 
-	roomID, err := services.CreateRoom(req.UserID, req.Name, req.RoomName, req.Language, req.InitialCode)
+	creatorUserID, _, _ := resolveIdentity(c, req.UserID, req.Name)
+	if creatorUserID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId is required"})
+		return
+	}
+
+	roomID, err := services.CreateRoom(creatorUserID, req.RoomName, req.Language, req.InitialCode)
 	if err != nil {
 		if errors.Is(err, models.ErrRoomExists) || errors.Is(err, models.ErrRoomNil) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -41,7 +59,13 @@ func JoinRoomHandler(c *gin.Context) {
 		return
 	}
 
-	response, err := services.JoinRoom(req.UserID, req.Name, req.RoomID)
+	userID, name, isClarkAuthed := resolveIdentity(c, req.UserID, req.Name)
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId is required"})
+		return
+	}
+
+	response, err := services.JoinRoom(userID, name, req.RoomID, isClarkAuthed)
 	if err != nil {
 		if errors.Is(err, models.ErrRoomNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -54,10 +78,12 @@ func JoinRoomHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"ok": true,
 		"data": map[string]any{
-			"roomName": response["roomName"],
-			"document": response["document"],
-			"language": response["language"],
-			"users":    response["users"],
+			"roomName":      response["roomName"],
+			"creatorUserId": response["creatorUserId"],
+			"document":      response["document"],
+			"language":      response["language"],
+			"users":         response["users"],
+			"userId":        userID,
 		},
 	})
 }
@@ -114,19 +140,31 @@ func SwitchLanguageHandler(c *gin.Context) {
 }
 
 func EndInterviewHandler(c *gin.Context) {
-	apiKey := c.GetHeader("x-api-key")
-	if apiKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "API key is required"})
-		return
-	}
-	if apiKey != config.GetAPIKey() {
-		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "Invalid API key"})
-		return
-	}
-
 	roomID := c.Param("roomID")
 	if roomID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "Room ID is required"})
+		return
+	}
+
+	// Resolve who is asking: Clark cookie wins over body. For guests the
+	// body's userId is the only signal — same trust model as room creation.
+	var req models.EndInterviewRequest
+	_ = c.ShouldBindJSON(&req)
+	requesterUserID, _, _ := resolveIdentity(c, req.UserID, "")
+	if requesterUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "userId required to end interview"})
+		return
+	}
+
+	room, exists := models.GetHub().GetRoom(roomID)
+	if !exists {
+		// Already gone — treat as success so a duplicate click still
+		// lets the user navigate home.
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+		return
+	}
+	if room.CreatorUserID != requesterUserID {
+		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "only the room creator can end the interview"})
 		return
 	}
 
@@ -143,30 +181,7 @@ func EndInterviewHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-func ValidateKeyHandler(c *gin.Context) {
-	apiKey := c.GetHeader("x-api-key")
-	if apiKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "API key is required"})
-		return
-	}
-	if apiKey != config.GetAPIKey() {
-		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "Invalid API key"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
 func ListPastInterviewsHandler(c *gin.Context) {
-	apiKey := c.GetHeader("x-api-key")
-	if apiKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "API key is required"})
-		return
-	}
-	if apiKey != config.GetAPIKey() {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid API key"})
-		return
-	}
-
 	dirPath := "past"
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -216,16 +231,6 @@ func GetDocumentSaveHandler(c *gin.Context) {
 	roomID := c.Param("roomID")
 	if roomID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room ID is required"})
-		return
-	}
-
-	apiKey := c.GetHeader("x-api-key")
-	if apiKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "API key is required"})
-		return
-	}
-	if apiKey != config.GetAPIKey() {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid API key"})
 		return
 	}
 

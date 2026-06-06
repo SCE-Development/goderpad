@@ -67,7 +67,8 @@ interface CodeEditorProps {
 
 function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLanguage }: CodeEditorProps) {
   const { isDark } = useContext(DarkModeContext);
-  const { userId } = useContext(UserContext);
+  const { user } = useContext(UserContext);
+  const userId = user.userId;
   const isKnownLanguage = (lang: string): lang is Language =>
     LANGUAGE_OPTIONS.some(opt => opt.value === lang);
   const [language, setLanguage] = useState<Language>(

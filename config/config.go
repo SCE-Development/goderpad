@@ -20,7 +20,8 @@ type RedisConfig struct {
 
 type ServerConfig struct {
 	Port                  string   `yaml:"port"`
-	APIKey                string   `yaml:"api_key"`
+	JWTSecret             string   `yaml:"jwt_secret"`
+	DevAuth               bool     `yaml:"dev_auth"`
 	AllowedOrigins        []string `yaml:"allowed_origins"`
 	EnableCodeExecution bool `yaml:"enable_code_execution"`
 	DockerBinaryPath      string   `yaml:"docker_binary_path"`
@@ -47,8 +48,15 @@ func GetPort() string {
 	return AppConfig.Server.Port
 }
 
-func GetAPIKey() string {
-	return AppConfig.Server.APIKey
+func GetJWTSecret() string {
+	if env := os.Getenv("SCE_JWT_SECRET"); env != "" {
+		return env
+	}
+	return AppConfig.Server.JWTSecret
+}
+
+func GetDevAuth() bool {
+	return AppConfig.Server.DevAuth
 }
 
 func GetAllowedOrigins() []string {

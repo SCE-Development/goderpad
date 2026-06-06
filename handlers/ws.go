@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"goderpad/auth"
 	"goderpad/config"
 	"goderpad/metrics"
 	"goderpad/models"
@@ -43,6 +44,17 @@ func WebSocketHandler(c *gin.Context) {
 	if !userExists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found in room"})
 		return
+	}
+
+	// Defense in depth: if this User was Clark-authed at join time, the
+	// upgrade request must carry a matching jwtToken cookie. Without this,
+	// a guest who learned the userID could open a WS as that user.
+	if user.IsClarkAuthed {
+		id := auth.IdentityFromContext(c)
+		if id.Clark == nil || id.Clark.UserID != user.UserID {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			return
+		}
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)

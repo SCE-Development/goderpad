@@ -22,6 +22,7 @@ const (
 type User struct {
 	UserID         string                `json:"userId"`
 	Name           string                `json:"userName"`
+	IsClarkAuthed  bool                  `json:"-"`
 	CursorPosition CursorPosition        `json:"cursorPosition"`
 	Selection      *SelectionRange       `json:"selection"`
 	Conn           *websocket.Conn       `json:"-"`
@@ -42,10 +43,11 @@ type SelectionRange struct {
 	EndColumn       int `json:"endColumn"`
 }
 
-func CreateUser(userID, name string) *User {
+func CreateUser(userID, name string, isClarkAuthed bool) *User {
 	user := &User{
 		UserID:         userID,
 		Name:           name,
+		IsClarkAuthed:  isClarkAuthed,
 		CursorPosition: CursorPosition{Line: 1, Column: 1},
 		Conn:           nil,
 		Send:           make(chan BroadcastMessage),

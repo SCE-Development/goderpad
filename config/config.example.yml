@@ -1,6 +1,7 @@
 server:
   port: YOUR_PORT_HERE
-  api_key: YOUR_API_KEY_HERE
+  jwt_secret: ""  # shared with Clark's secretKey; prod override via SCE_JWT_SECRET env var
+  dev_auth: false  # set true in local dev to enable POST /api/dev/login
   enable_code_execution: false
   docker_binary_path: ""  # leave empty to use "docker" from $PATH, or set full path e.g. /usr/local/bin/docker
   allowed_origins:
