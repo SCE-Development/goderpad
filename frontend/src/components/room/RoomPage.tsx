@@ -53,9 +53,54 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   const [connectionState, setConnectionState] = useState<'connected' | 'reconnecting' | 'failed'>('connected');
   const shouldReconnectRef = useRef(true);
 
+  // Duplicate-tab detection: if another tab in this browser already has this
+  // room open (same origin → same userId in localStorage), block joining here
+  // and prompt the user back to their original tab. Without this, both tabs
+  // race to be the active connection for the same userID and the server thrashes.
+  const [duplicateTabDetected, setDuplicateTabDetected] = useState(false);
+  const [tabCheckComplete, setTabCheckComplete] = useState(false);
+  const tabIdRef = useRef<string>(crypto.randomUUID());
+  const isJoinedRef = useRef(false);
+  useEffect(() => { isJoinedRef.current = isJoined; }, [isJoined]);
+
+  // Detect another tab already in this room before we try to join. Sends a
+  // ping on a per-room BroadcastChannel; any already-joined tab answers with
+  // a pong. If we hear a pong within the grace window we flip duplicateTab
+  // and stop the join flow. Otherwise we mark the check complete and the
+  // auto-join effect proceeds normally.
+  useEffect(() => {
+    if (!roomId) return;
+    if (typeof BroadcastChannel === 'undefined') {
+      setTabCheckComplete(true);
+      return;
+    }
+
+    const channel = new BroadcastChannel(`goderpad-room-${roomId}`);
+
+    const onMessage = (e: MessageEvent) => {
+      if (!e.data || e.data.from === tabIdRef.current) return;
+      if (e.data.type === 'ping' && isJoinedRef.current) {
+        channel.postMessage({ type: 'pong', from: tabIdRef.current });
+      } else if (e.data.type === 'pong') {
+        setDuplicateTabDetected(true);
+        setTabCheckComplete(true);
+      }
+    };
+    channel.addEventListener('message', onMessage);
+
+    channel.postMessage({ type: 'ping', from: tabIdRef.current });
+    const timer = setTimeout(() => setTabCheckComplete(true), 300);
+
+    return () => {
+      clearTimeout(timer);
+      channel.removeEventListener('message', onMessage);
+      channel.close();
+    };
+  }, [roomId]);
+
   const handleJoinRoom = async () => {
-    if (!userName.trim() || !roomId) return;
-    
+    if (!userName.trim() || !roomId || duplicateTabDetected) return;
+
     setIsLoading(true);
     const response = await joinRoom(userId, userName, roomId);
     setIsLoading(false);
@@ -104,6 +149,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
       navigate('/');
       return;
     }
+    if (!tabCheckComplete || duplicateTabDetected) return;
 
     const storedData = localStorage.getItem(`goderpad-cookie-${roomId}`);
     if (!storedData) return;
@@ -142,7 +188,7 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
     };
 
     joinWithStoredData();
-  }, [roomId, userId, navigate]);
+  }, [roomId, userId, navigate, tabCheckComplete, duplicateTabDetected]);
 
   // Setup WebSocket connection and handlers when the user successfully joins the room.
   // Automatically reconnects on close/error with exponential backoff. The server-side
@@ -385,6 +431,22 @@ function RoomPage({ interviewType: propInterviewType }: RoomPageProps) {
   }, [ws, isJoined, userId, userName]);
 
   if (!isJoined) {
+    if (duplicateTabDetected) {
+      return (
+        <Popup
+          message="you're already in this room in another tab!"
+          buttonText="ok"
+          isOpen={true}
+          onClickButton={() => {
+            // window.close() only works on tabs the script itself opened, so
+            // it's a best-effort; fall back to navigating home if the browser
+            // blocks it.
+            window.close();
+            setTimeout(() => navigate('/'), 100);
+          }}
+        />
+      );
+    }
     return (<>
       <Popup
         message="sorry, an error occurred trying to join the room"

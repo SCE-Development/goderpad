@@ -182,12 +182,13 @@ func readBroadcastsFromUser(user *models.User, room *models.Room) {
 func closeUserConnection(user *models.User, room *models.Room) {
 	userID := user.UserID // Save before closing
 
-	// First remove user from room so they don't receive their own leave message
-	room.RemoveUser(userID)
+	// Only remove the map entry if it still points to THIS user. A concurrent
+	// duplicate join (same userID, e.g. the user opened the room in a second
+	// tab) may have already replaced us with a new User+Conn; in that case the
+	// new tab is the live one and we must not evict it or fire user_left.
+	removed := room.RemoveUserIfSame(userID, user)
 
-	// Broadcast user_left to remaining users. Skip if the room is ending
-	// or already torn down to avoid blocking forever or panicking on send.
-	if !room.IsEnded() {
+	if removed && !room.IsEnded() {
 		select {
 		case room.Broadcast <- models.BroadcastMessage{
 			UserID: userID,

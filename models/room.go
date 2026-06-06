@@ -120,9 +120,23 @@ func (r *Room) RemoveUser(userID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exists := r.Users[userID]; exists {
-		delete(r.Users, userID)	
+		delete(r.Users, userID)
 		metrics.RoomUsersTotal.Dec()
 	}
+}
+
+// RemoveUserIfSame deletes the map entry only if it still references the
+// given User pointer. Used by closeUserConnection so a stale reader goroutine
+// from a dropped tab doesn't evict a new tab that just took over the same userID.
+func (r *Room) RemoveUserIfSame(userID string, user *User) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if current, exists := r.Users[userID]; exists && current == user {
+		delete(r.Users, userID)
+		metrics.RoomUsersTotal.Dec()
+		return true
+	}
+	return false
 }
 
 func (r *Room) CheckUserExists(userID string) (*User, bool) {

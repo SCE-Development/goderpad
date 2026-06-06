@@ -34,16 +34,23 @@ func JoinRoom(userID, name, roomID string) (map[string]any, error) {
 		return nil, models.ErrRoomNotFound
 	}
 
-	// Reconnect path: if the user is already in the room (their old conn
-	// hasn't been cleaned up yet — e.g., the client noticed the drop
-	// before the server's pong-timeout fired), tear down the stale User
-	// so we don't leak its HandleBroadcasts goroutine or hold a dead Conn.
+	// Reconnect / duplicate-tab path: a User entry already exists for this
+	// userID (e.g. client reconnect after a transient drop, or the user
+	// opened the room in a second tab). Tear down the old one so we don't
+	// leak its HandleBroadcasts goroutine or hold a dead Conn.
 	if existing, ok := room.CheckUserExists(userID); ok {
 		if existing.Conn != nil {
+			// There's an active reader goroutine on this Conn. Closing the
+			// Conn wakes its ReadJSON and triggers its deferred
+			// closeUserConnection, which (with RemoveUserIfSame) safely
+			// cleans up the map entry and User channels. Doing those steps
+			// here too would race the reader and double-close the channels.
 			existing.Conn.Close()
+		} else {
+			// No active reader to clean up after itself — do it ourselves.
+			room.RemoveUser(userID)
+			existing.Close()
 		}
-		room.RemoveUser(userID)
-		existing.Close()
 	}
 
 	user := models.CreateUser(userID, name)
