@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useSandpackConsole } from '@codesandbox/sandpack-react';
 
 interface InteractiveConsoleProps {
@@ -149,23 +149,32 @@ function methodStyle(method: string, isDark: boolean): string {
   return '';
 }
 
+const MAX_VISIBLE_LOGS = 25;
+
 const InteractiveConsole = forwardRef<InteractiveConsoleHandle, InteractiveConsoleProps>(({ isDark }, ref) => {
   const { logs, reset } = useSandpackConsole({
-    resetOnPreviewRestart: true,
+    resetOnPreviewRestart: false,
     showSyntaxError: true,
   });
   useImperativeHandle(ref, () => ({ reset }), [reset]);
 
   const theme = isDark ? darkTheme : lightTheme;
+  const visibleLogs = logs.slice(-MAX_VISIBLE_LOGS);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [logs.length]);
 
   return (
-    <div className={`h-full overflow-y-auto font-mono text-xs ${isDark ? 'bg-slate-900 text-gray-200' : 'bg-white text-gray-900'}`}>
-      {logs.length === 0 && (
+    <div ref={scrollRef} className={`h-full overflow-y-auto font-mono text-xs ${isDark ? 'bg-slate-900 text-gray-200' : 'bg-white text-gray-900'}`}>
+      {visibleLogs.length === 0 && (
         <div className={`px-3 py-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           console output will appear here
         </div>
       )}
-      {logs.map((entry) => {
+      {visibleLogs.map((entry) => {
         const method = String(entry.method);
         const items = entry.data ?? [];
         return (

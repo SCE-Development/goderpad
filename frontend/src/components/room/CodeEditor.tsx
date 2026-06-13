@@ -5,7 +5,7 @@ import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
-import { useState, useRef, useContext, useEffect, useCallback } from 'react';
+import { useState, useRef, useContext, useEffect, useCallback, useMemo } from 'react';
 import { DarkModeContext, UserContext } from '../../App';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
 import InteractiveConsole, { type InteractiveConsoleHandle } from './InteractiveConsole';
@@ -208,7 +208,6 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
   const handleEditorChange = (value: string | undefined) => {
     if (value !== undefined) {
       setCode(value);
-      console.clear();
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({
           userId,
@@ -484,6 +483,17 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
   const selectedLang = LANGUAGE_OPTIONS.find(l => l.value === language)!;
   const showPreview = interviewType === 'react';
 
+  // Memoize so resize-driven re-renders don't change prop identity and
+  // trigger Sandpack recompiles.
+  const sandpackFiles = useMemo(() => ({ '/App.js': debouncedCode }), [debouncedCode]);
+  const sandpackOptions = useMemo(() => ({
+    externalResources: [],
+    bundlerURL: 'https://sandpack-bundler.codesandbox.io',
+    recompileMode: 'delayed' as const,
+    recompileDelay: 300,
+    autoReload: true,
+  }), []);
+
   return (
     <div ref={containerRef} className={`relative flex ${isMobile ? 'flex-col' : 'flex-row'} ${isDark ? 'bg-slate-900' : 'bg-gray-100'} p-6 pt-20`}>
       {/* Language dropdown — only shown for leetcode interviews */}
@@ -621,17 +631,9 @@ function CodeEditor({ code, setCode, ws, roomId, interviewType, users, initialLa
             <SandpackProvider
               key={`${sandpackKey}-${language}`}
               template={selectedLang.sandpackTemplate}
-              files={{
-                '/App.js': debouncedCode,
-              }}
+              files={sandpackFiles}
               theme={isDark ? 'dark' : 'light'}
-              options={{
-                externalResources: [],
-                bundlerURL: 'https://sandpack-bundler.codesandbox.io',
-                recompileMode: 'delayed',
-                recompileDelay: 300,
-                autoReload: true,
-              }}
+              options={sandpackOptions}
               style={{ height: '100%' }}
             >
               {isMobile ? (
